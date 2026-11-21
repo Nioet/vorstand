@@ -482,3 +482,7 @@ dialog details summary { cursor: pointer; color: var(--tanne); font-weight: 600;
   font-size: 1.15rem; font-weight: 700; cursor: pointer;
 }
 .punkt-pfeil[disabled], .aufgabe .knoepfe .pfeil[disabled] { opacity: .3; }
+
+/* ---------- Datensicherung ---------- */
+#letzte-sicherung.alt { color: var(--rot); font-weight: 700; }
+label.knopf { display: flex; font-weight: 600; margin: .6rem 0 0; }

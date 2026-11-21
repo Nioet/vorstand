@@ -7,6 +7,7 @@ Eine schlichte Web-App für den Vorstand:
 - **Unterpunkte zum Abhaken** an jedem Termin – jeweils mit Zuständigen und Frist
 - **Projekte**, die Termine und Aufgaben bündeln, mit zuständiger Person und Fortschrittsbalken; Termine im Projekt heißen ohne eigenen Titel wie das Projekt
 - **Reihenfolge**: Aufgaben und Unterpunkte sortieren sich automatisch nach Fälligkeit, lassen sich mit ↑/↓ von Hand umsortieren und per Knopf wieder nach Datum ordnen
+- **Datensicherung** unter „Mehr“: alles als Datei herunterladen und bei Bedarf wiederherstellen
 - **Duplizieren** per ＋ auf jeder Karte: Termine (fragt nach neuem Datum), Aufgaben und ganze Projekte – Unterpunkte sind danach wieder offen
 - **Kalender-Abo**: alle Termine und Aufgaben-Fristen erscheinen automatisch im eigenen Handy-Kalender (iPhone, Android/Google, Outlook)
 - **Anmeldung ohne Passwort**: E-Mail-Adresse eingeben → Code aus der E-Mail eintippen (oder auf den Link tippen). Danach bleibt man auf dem Gerät angemeldet.
@@ -113,6 +114,9 @@ Kostenlose Supabase-Projekte werden nach etwa einer Woche ohne Nutzung pausiert.
 | Code kommt nicht an | Spam-Ordner prüfen; in Supabase unter *Authentication → Logs* nachsehen; SMTP-Daten prüfen. |
 | Google Kalender zeigt Änderungen spät | Normal: Google aktualisiert abonnierte Kalender nur alle paar Stunden. iPhone und Outlook sind schneller. |
 | App-Name auf dem Startbildschirm ändern | In `manifest.webmanifest` und `index.html` („apple-mobile-web-app-title“) `Vorstand` ersetzen. |
+
+## Datensicherung
+Der kostenlose Supabase-Plan macht **keine automatischen Backups**. Deshalb in der App unter „Mehr“ → **„💾 Daten sichern“** etwa einmal im Monat eine Sicherung herunterladen und in der Grünen Wolke ablegen. Die Datei enthält Termine, Aufgaben, Projekte und die Namen/E-Mail-Adressen des Vorstands – also bitte nicht öffentlich ablegen. Über „Sicherung wiederherstellen“ lässt sie sich zurückspielen.
 
 ## Datenschutz
 - Daten liegen bei Supabase in Frankfurt; Supabase bietet einen Auftragsverarbeitungsvertrag (DPA) an – den solltet ihr abschließen.

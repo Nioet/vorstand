@@ -1253,6 +1253,7 @@ async function dupliziereAufgabe(a) {
 //  Mehr: Name, Kalender-Abo, Vorstandsliste
 // ------------------------------------------------------------------
 function zeichneMehr() {
+  zeigeLetzteSicherung();
   if (document.activeElement !== $("#mein-name")) $("#mein-name").value = S.ich?.name || "";
   $("#vorstand-liste").innerHTML = S.profile
     .filter((p) => p.aktiv)
@@ -1300,6 +1301,128 @@ $("#form-name").addEventListener("submit", async (e) => {
   const p = S.profile.find((x) => x.id === S.userId); if (p) p.name = name;
   zeichneAlles();
   meldung("Name gespeichert.");
+});
+
+// ------------------------------------------------------------------
+//  Datensicherung: herunterladen und wiederherstellen
+// ------------------------------------------------------------------
+const SICHERUNG_TABELLEN = ["projekte", "termine", "aufgaben"]; // Reihenfolge wegen Verknüpfungen
+
+async function alleZeilen(tabelle) {
+  const zeilen = [];
+  for (let von = 0; ; von += 1000) {
+    const { data, error } = await sb.from(tabelle).select("*").order("id").range(von, von + 999);
+    if (error) throw error;
+    zeilen.push(...data);
+    if (data.length < 1000) return zeilen;
+  }
+}
+
+function zeigeLetzteSicherung() {
+  const el = $("#letzte-sicherung");
+  const zuletzt = localStorage.getItem("vorstand-letzte-sicherung");
+  if (!zuletzt) {
+    el.textContent = "Auf diesem Gerät wurde noch nicht gesichert.";
+    el.classList.remove("alt");
+    return;
+  }
+  const tage = -tageBis(zuletzt.slice(0, 10));
+  el.textContent = `Letzte Sicherung auf diesem Gerät: ${langesDatum(zuletzt.slice(0, 10))}` +
+    (tage === 0 ? " (heute)" : tage === 1 ? " (gestern)" : ` (vor ${tage} Tagen)`);
+  el.classList.toggle("alt", tage > 35);
+}
+
+$("#sichern").addEventListener("click", async (e) => {
+  const knopf = e.currentTarget;
+  knopf.disabled = true;
+  try {
+    const daten = {
+      app: "vorstands-app",
+      version: 1,
+      exportiert_am: new Date().toISOString(),
+      exportiert_von: S.ich?.name || S.ich?.email || null,
+      profile: S.profile.map(({ id, name, email, aktiv }) => ({ id, name, email, aktiv })),
+    };
+    for (const t of SICHERUNG_TABELLEN) daten[t] = await alleZeilen(t);
+
+    const name = `vorstand-sicherung-${heute()}.json`;
+    const datei = new File([JSON.stringify(daten, null, 2)], name, { type: "application/json" });
+    // Auf dem Handy über "Teilen" (z. B. in Dateien oder die Nextcloud-App), sonst normal herunterladen
+    const handy = matchMedia("(pointer: coarse)").matches;
+    if (handy && navigator.canShare?.({ files: [datei] })) {
+      try {
+        await navigator.share({ files: [datei], title: "Vorstand – Datensicherung" });
+      } catch (err) {
+        if (err.name === "AbortError") return; // abgebrochen
+        throw err;
+      }
+    } else {
+      const url = URL.createObjectURL(datei);
+      const a = Object.assign(document.createElement("a"), { href: url, download: name });
+      document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    }
+    localStorage.setItem("vorstand-letzte-sicherung", new Date().toISOString());
+    zeigeLetzteSicherung();
+    meldung(`Gesichert: ${daten.termine.length} Termine, ${daten.aufgaben.length} Aufgaben, ${daten.projekte.length} Projekte.`);
+  } catch (err) {
+    console.error(err);
+    meldung("Die Sicherung hat nicht geklappt.", true);
+  } finally {
+    knopf.disabled = false;
+  }
+});
+
+$("#sicherung-datei").addEventListener("change", async (e) => {
+  const datei = e.target.files?.[0];
+  e.target.value = "";
+  if (!datei) return;
+  let daten;
+  try {
+    daten = JSON.parse(await datei.text());
+    if (daten.app !== "vorstands-app" || !Array.isArray(daten.termine)) throw new Error("falsches Format");
+  } catch {
+    return meldung("Das ist keine Sicherungsdatei dieser App.", true);
+  }
+  const wann = daten.exportiert_am ? langesDatum(daten.exportiert_am.slice(0, 10)) : "unbekannt";
+  if (!confirm(
+    `Sicherung vom ${wann} wiederherstellen?\n\n` +
+    `${daten.termine.length} Termine, ${(daten.aufgaben || []).length} Aufgaben, ${(daten.projekte || []).length} Projekte.\n` +
+    "Gelöschtes kommt zurück, Geändertes wird auf den Stand der Sicherung gesetzt. Neuere Einträge bleiben."
+  )) return;
+
+  try {
+    // Verweise auf Personen, die es nicht mehr gibt, werden geleert
+    const personen = new Set(S.profile.map((p) => p.id));
+    const person = (id) => (id && personen.has(id) ? id : null);
+    const projekte = (daten.projekte || []).map((p) => ({ ...p, zustaendig: person(p.zustaendig), erstellt_von: person(p.erstellt_von) }));
+    const projektIds = new Set([...projekte.map((p) => p.id), ...S.projekte.map((p) => p.id)]);
+    const termine = daten.termine.map((t) => ({
+      ...t,
+      erstellt_von: person(t.erstellt_von),
+      projekt_id: t.projekt_id && projektIds.has(t.projekt_id) ? t.projekt_id : null,
+    }));
+    const terminIds = new Set([...termine.map((t) => t.id), ...S.termine.map((t) => t.id)]);
+    const aufgaben = (daten.aufgaben || []).map((a) => ({
+      ...a,
+      zustaendig: person(a.zustaendig),
+      erstellt_von: person(a.erstellt_von),
+      projekt_id: a.projekt_id && projektIds.has(a.projekt_id) ? a.projekt_id : null,
+      termin_id: a.termin_id && terminIds.has(a.termin_id) ? a.termin_id : null,
+    }));
+
+    for (const [tabelle, zeilen] of [["projekte", projekte], ["termine", termine], ["aufgaben", aufgaben]]) {
+      for (let i = 0; i < zeilen.length; i += 500) {
+        const { error } = await sb.from(tabelle).upsert(zeilen.slice(i, i + 500), { onConflict: "id" });
+        if (error) throw error;
+      }
+    }
+    meldung("Sicherung wiederhergestellt.");
+    await neuLadenUndZeichnen();
+  } catch (err) {
+    console.error(err);
+    meldung("Wiederherstellen hat nicht geklappt: " + (err.message || err), true);
+  }
 });
 
 // Start: Falls niemand angemeldet ist, kommt sofort die Anmeldung

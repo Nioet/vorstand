@@ -128,6 +128,19 @@
         </div>
 
         <div class="karte">
+          <h2>Datensicherung</h2>
+          <p>Lädt alle Termine, Aufgaben und Projekte als Datei herunter. Am besten etwa einmal im Monat sichern und die Datei in der Grünen Wolke ablegen.</p>
+          <button id="sichern" class="knopf haupt breit">💾 Daten sichern</button>
+          <p id="letzte-sicherung" class="klein"></p>
+          <details class="hilfe">
+            <summary>Sicherung wiederherstellen</summary>
+            <p>Wähle eine Sicherungsdatei aus. Gelöschte Einträge kommen zurück, geänderte werden auf den Stand der Sicherung zurückgesetzt. Was nach der Sicherung neu angelegt wurde, bleibt erhalten.</p>
+            <label for="sicherung-datei" class="knopf breit">📂 Sicherungsdatei auswählen</label>
+            <input id="sicherung-datei" type="file" accept=".json,application/json" hidden>
+          </details>
+        </div>
+
+        <div class="karte">
           <h2>Wenn jemand den Vorstand verlässt</h2>
           <p class="klein">Ein neuer Kalender-Link sorgt dafür, dass alte Abos nicht mehr funktionieren.
             Alle anderen müssen den Kalender danach neu abonnieren.</p>
