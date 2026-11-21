@@ -250,6 +250,45 @@
     </form>
   </dialog>
 
+  <!-- Termin duplizieren -->
+  <dialog id="dialog-dupl-termin">
+    <form method="dialog" id="form-dupl-termin">
+      <h2>Termin duplizieren</h2>
+      <p id="dt-info"></p>
+      <label for="dt-datum">Neues Datum</label>
+      <input id="dt-datum" type="date" required>
+      <label class="haken"><input id="dt-ganztags" type="checkbox"> Ganztägig (ohne Uhrzeit)</label>
+      <div class="zeile" id="dt-zeiten">
+        <div><label for="dt-start">Von</label><input id="dt-start" type="time"></div>
+        <div><label for="dt-ende">Bis</label><input id="dt-ende" type="time"></div>
+      </div>
+      <p id="dt-hinweis" class="klein"></p>
+      <div class="dialog-knoepfe">
+        <button type="submit" value="ok" class="knopf haupt">Duplizieren</button>
+        <button type="submit" value="abbrechen" formnovalidate class="knopf">Abbrechen</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Projekt duplizieren -->
+  <dialog id="dialog-dupl-projekt">
+    <form method="dialog" id="form-dupl-projekt">
+      <h2>Projekt duplizieren</h2>
+      <p id="dp-info"></p>
+      <label for="dp-name">Name des neuen Projekts</label>
+      <input id="dp-name" required>
+      <div id="dp-datum-bereich">
+        <label for="dp-datum" id="dp-datum-label">Erster Termin im neuen Projekt</label>
+        <input id="dp-datum" type="date">
+        <p class="klein">Alle Termine und Fristen verschieben sich um denselben Abstand.</p>
+      </div>
+      <div class="dialog-knoepfe">
+        <button type="submit" value="ok" class="knopf haupt">Duplizieren</button>
+        <button type="submit" value="abbrechen" formnovalidate class="knopf">Abbrechen</button>
+      </div>
+    </form>
+  </dialog>
+
   <div id="meldung" class="meldung" role="status" aria-live="polite" hidden></div>
 </body>
 </html>

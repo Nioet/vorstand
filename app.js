@@ -31,6 +31,13 @@ const wochentag = (s) => fmtWochentag.format(alsDatum(s)).replace(".", "");
 const langesDatum = (s) => fmtLang.format(alsDatum(s));
 const kurzesDatum = (s) => fmtKurz.format(alsDatum(s));
 
+const plusTage = (s, n) => { const d = alsDatum(s); d.setDate(d.getDate() + n); return isoTag(d); };
+const tageZwischen = (von, bis) => {
+  const [a, b] = [von, bis].map((x) => { const [y, m, d] = x.split("-").map(Number); return Date.UTC(y, m - 1, d); });
+  return Math.round((b - a) / 86400000);
+};
+const plusJahr = (s) => { const d = alsDatum(s); d.setFullYear(d.getFullYear() + 1); return isoTag(d); };
+
 const leer = (v) => { const x = (v ?? "").trim(); return x === "" ? null : x; };
 const nachText = (feld) => (x, y) => String(x[feld] ?? "").localeCompare(String(y[feld] ?? ""), "de");
 
@@ -367,6 +374,11 @@ function zeichneAlles() {
 $(".inhalt").addEventListener("click", (e) => {
   const ziel = e.target;
 
+  const duplT = ziel.closest("[data-dupl-termin]");
+  if (duplT) return oeffneTerminDuplizieren(terminVon(duplT.dataset.duplTermin));
+  const duplP = ziel.closest("[data-dupl-projekt]");
+  if (duplP) return oeffneProjektDuplizieren(projektVon(duplP.dataset.duplProjekt));
+
   const tun = ziel.closest("[data-tun]");
   const karte = tun?.closest("[data-id]");
   if (tun && karte) {
@@ -438,14 +450,15 @@ function terminKarte(t, { mitMarke = true, mitProjekt = true } = {}) {
     punkte.length ? `<span class="etikett${fertig === punkte.length ? " fertig" : ""}">☑ ${fertig} von ${punkte.length} erledigt</span>` : "",
     mitProjekt ? projektEtikett(t.projekt_id) : "",
   ].join("");
-  return `<button class="termin${laeuft ? " heute" : ""}" data-termin="${t.id}">${datumBlock(t.datum)}
+  return `<div class="karte-zeile"><button class="termin${laeuft ? " heute" : ""}" data-termin="${t.id}">${datumBlock(t.datum)}
     <span class="termin-text">
       <strong>${esc(t.titel)}${mitMarke ? relMarke(t.datum) : ""}</strong>
       <span class="zeit">${esc(zeitText(t))}</span>
       ${t.ort ? `<span class="ort"><br>📍 ${esc(t.ort)}</span>` : ""}
       ${t.beschreibung ? `<span class="notiz"><br>${esc(t.beschreibung.length > 140 ? t.beschreibung.slice(0, 140) + " …" : t.beschreibung)}</span>` : ""}
       ${etiketten ? `<span class="etiketten">${etiketten}</span>` : ""}
-    </span></button>`;
+    </span></button>
+    <button class="dupl-knopf" data-dupl-termin="${t.id}" aria-label="Termin „${esc(t.titel)}“ duplizieren" title="Duplizieren">＋</button></div>`;
 }
 
 function fristText(a) {
@@ -480,6 +493,7 @@ function aufgabeHtml(a, { mitProjekt = true } = {}) {
     mitProjekt ? projektEtikett(projektIdVonAufgabe(a)) : "",
   ].join("");
   return `<article class="aufgabe${a.status === "erledigt" ? " ist-erledigt" : ""}" data-id="${a.id}">
+    <button class="dupl-knopf" data-tun="duplizieren" aria-label="„${esc(a.titel)}“ duplizieren" title="Duplizieren">＋</button>
     <button class="titel-knopf" data-tun="bearbeiten">${esc(a.titel)}</button>
     <div class="meta">👤 ${esc(wer ? (istMeine ? `${wer} (ich)` : wer) : "noch niemand")}${frist ? " · " + frist : ""}</div>
     ${etiketten ? `<div class="etiketten">${etiketten}</div>` : ""}
@@ -771,6 +785,7 @@ function aufgabenAktion(a, tun) {
     case "zurueck": return aendereAufgabe(a, { status: "offen" });
     case "erledigt": return aendereAufgabe(a, { status: "erledigt" }, "Erledigt – super! 🎉");
     case "oeffnen": return aendereAufgabe(a, { status: "offen" });
+    case "duplizieren": return dupliziereAufgabe(a);
   }
 }
 
@@ -884,12 +899,13 @@ function zeichneProjekte() {
             z.naechster ? `📅 nächster Termin: ${esc(langesDatum(z.naechster.datum))}` : "",
             x.abgeschlossen ? "✔ abgeschlossen" : "",
           ].filter(Boolean).join(" · ");
-          return `<button class="projekt-karte${x.abgeschlossen ? " ist-abgeschlossen" : ""}" data-projekt="${x.id}">
+          return `<div class="karte-zeile"><button class="projekt-karte${x.abgeschlossen ? " ist-abgeschlossen" : ""}" data-projekt="${x.id}">
             <strong>📁 ${esc(x.name)}</strong>
             ${x.beschreibung ? `<span class="beschreibung">${esc(x.beschreibung.length > 120 ? x.beschreibung.slice(0, 120) + " …" : x.beschreibung)}</span>` : ""}
             ${z.aufgaben.length ? balken(z.erledigt / z.aufgaben.length) : ""}
             <span class="meta">${meta}</span>
-          </button>`;
+          </button>
+          <button class="dupl-knopf" data-dupl-projekt="${x.id}" aria-label="Projekt „${esc(x.name)}“ duplizieren" title="Duplizieren">＋</button></div>`;
         }).join("")
       : `<p class="leer">${S.projekte.length ? "Keine offenen Projekte." : "Noch keine Projekte. Ein Projekt sammelt Termine und Aufgaben, z. B. „Neujahrsempfang“ oder „Wahlkampf“."}</p>`;
     $("#zeige-abgeschlossene").checked = S.zeigeAbgeschlossene;
@@ -908,8 +924,9 @@ function zeichneProjekte() {
 
   detail.innerHTML = `
     <button class="knopf leise" data-aktion="projekte-zurueck">← Alle Projekte</button>
-    <div class="karte projekt-kopf">
-      <h2>📁 ${esc(p.name)}${p.abgeschlossen ? ' <span class="marke">abgeschlossen</span>' : ""}</h2>
+    <div class="karte projekt-kopf karte-zeile">
+      <button class="dupl-knopf" data-dupl-projekt="${p.id}" aria-label="Projekt duplizieren" title="Duplizieren">＋</button>
+      <h2 style="padding-right:3.2rem">📁 ${esc(p.name)}${p.abgeschlossen ? ' <span class="marke">abgeschlossen</span>' : ""}</h2>
       ${p.beschreibung ? `<p>${esc(p.beschreibung)}</p>` : ""}
       ${z.aufgaben.length ? `${balken(z.erledigt / z.aufgaben.length)}<p class="klein">${z.erledigt} von ${z.aufgaben.length} Aufgaben erledigt</p>` : ""}
       <button class="knopf breit" data-aktion="projekt-bearbeiten">Projekt bearbeiten</button>
@@ -984,6 +1001,146 @@ $("#p-loeschen").addEventListener("click", async () => {
   meldung("Projekt gelöscht.");
   await neuLadenUndZeichnen();
 });
+
+// ------------------------------------------------------------------
+//  Duplizieren
+// ------------------------------------------------------------------
+const aufzaehlung = (teile) =>
+  teile.length <= 1 ? teile.join("") : teile.slice(0, -1).join(", ") + " und " + teile[teile.length - 1];
+
+// --- Termin: fragt nach dem neuen Datum ---
+const dDT = $("#dialog-dupl-termin");
+let duplQuelle = null;
+
+function dtGanztagsUmschalten() {
+  $("#dt-zeiten").hidden = $("#dt-ganztags").checked;
+}
+$("#dt-ganztags").addEventListener("change", dtGanztagsUmschalten);
+$("#dt-start").addEventListener("change", () => {
+  const s = $("#dt-start").value;
+  if (s && !$("#dt-ende").value) {
+    const [hh, mm] = s.split(":").map(Number);
+    if (hh + 2 < 24) $("#dt-ende").value = `${pad(hh + 2)}:${pad(mm)}`;
+  }
+});
+
+function oeffneTerminDuplizieren(t) {
+  if (!t) return;
+  duplQuelle = t;
+  // Vorschlag: eine Woche später, aber nicht in der Vergangenheit
+  let vorschlag = plusTage(t.datum, 7);
+  while (vorschlag < heute()) vorschlag = plusTage(vorschlag, 7);
+  const n = unterpunkteVon(t.id).length;
+  const teile = [
+    t.ort ? "Ort" : null,
+    t.beschreibung ? "Notiz" : null,
+    t.projekt_id ? "Projekt" : null,
+    n ? `${n} Unterpunkt${n === 1 ? "" : "en"}` : null,
+  ].filter(Boolean);
+  $("#dt-info").textContent = teile.length
+    ? `„${t.titel}“ wird mit ${aufzaehlung(teile)} kopiert.`
+    : `„${t.titel}“ wird kopiert.`;
+  $("#dt-hinweis").textContent = n
+    ? "Die Unterpunkte sind danach wieder offen. Ihre Fristen verschieben sich mit dem Datum."
+    : "";
+  $("#dt-datum").value = vorschlag;
+  $("#dt-ganztags").checked = !t.start_zeit;
+  $("#dt-start").value = uhr(t.start_zeit);
+  $("#dt-ende").value = uhr(t.end_zeit);
+  dtGanztagsUmschalten();
+  dDT.returnValue = "";
+  dDT.showModal();
+}
+
+dDT.addEventListener("close", async () => {
+  if (dDT.returnValue !== "ok" || !duplQuelle) return;
+  const ganz = $("#dt-ganztags").checked;
+  const start = ganz ? null : $("#dt-start").value || null;
+  const datum = $("#dt-datum").value;
+  const { error } = await sb.rpc("termin_duplizieren", {
+    quelle: duplQuelle.id,
+    neues_datum: datum,
+    neue_start_zeit: start,
+    neue_end_zeit: start ? $("#dt-ende").value || null : null,
+  });
+  if (error) { console.error(error); meldung("Duplizieren hat nicht geklappt.", true); return wiederOeffnen(dDT); }
+  if (datum >= heute() && S.zeitraum !== "kommend") $('[data-zeitraum="kommend"]').click();
+  meldung(`Termin dupliziert: ${langesDatum(datum)}.`);
+  await neuLadenUndZeichnen();
+});
+
+// --- Projekt: fragt nach Name und neuem Startdatum ---
+const dDP = $("#dialog-dupl-projekt");
+let duplProjekt = null;
+let duplAnker = null; // frühestes Datum im Projekt
+
+function oeffneProjektDuplizieren(p) {
+  if (!p) return;
+  duplProjekt = p;
+  const z = projektZahlen(p);
+  const termineDaten = z.termine.map((t) => t.datum).sort();
+  const fristen = z.aufgaben.map((a) => a.faellig).filter(Boolean).sort();
+  duplAnker = termineDaten[0] || fristen[0] || null;
+
+  const weitere = z.aufgaben.filter((a) => !a.termin_id || !z.termine.some((t) => t.id === a.termin_id)).length;
+  const punkte = z.aufgaben.length - weitere;
+  const teile = [
+    z.termine.length ? `${z.termine.length} Termin${z.termine.length === 1 ? "" : "e"}` : null,
+    punkte ? `${punkte} Unterpunkt${punkte === 1 ? "" : "e"}` : null,
+    weitere ? `${weitere} Aufgabe${weitere === 1 ? "" : "n"}` : null,
+  ].filter(Boolean);
+  $("#dp-info").textContent = teile.length
+    ? `Kopiert werden ${aufzaehlung(teile)}. Alles ist danach wieder offen.`
+    : "Das Projekt hat noch keine Termine oder Aufgaben – kopiert werden Name und Beschreibung.";
+
+  // Jahreszahl im Namen hochzählen, sonst "(Kopie)"
+  const jahr = p.name.match(/\b(20\d{2})\b/);
+  $("#dp-name").value = jahr ? p.name.replace(jahr[1], String(Number(jahr[1]) + 1)) : `${p.name} (Kopie)`;
+
+  $("#dp-datum-bereich").hidden = !duplAnker;
+  $("#dp-datum-label").textContent = termineDaten[0] ? "Erster Termin im neuen Projekt" : "Erste Frist im neuen Projekt";
+  $("#dp-datum").value = duplAnker ? plusJahr(duplAnker) : "";
+  $("#dp-datum").required = !!duplAnker;
+  dDP.returnValue = "";
+  dDP.showModal();
+}
+
+dDP.addEventListener("close", async () => {
+  if (dDP.returnValue !== "ok" || !duplProjekt) return;
+  const verschiebung = duplAnker ? tageZwischen(duplAnker, $("#dp-datum").value) : 0;
+  const { data, error } = await sb.rpc("projekt_duplizieren", {
+    quelle: duplProjekt.id,
+    neuer_name: $("#dp-name").value.trim(),
+    verschiebung_tage: verschiebung,
+  });
+  if (error) { console.error(error); meldung("Duplizieren hat nicht geklappt.", true); return wiederOeffnen(dDP); }
+  S.projektOffen = data;
+  wechsleSeite("projekte");
+  meldung("Projekt dupliziert.");
+  await neuLadenUndZeichnen();
+});
+
+// --- Aufgabe: sofort kopieren und zum Anpassen öffnen ---
+async function dupliziereAufgabe(a) {
+  const { data, error } = await sb
+    .from("aufgaben")
+    .insert({
+      titel: a.titel,
+      beschreibung: a.beschreibung,
+      zustaendig: a.zustaendig,
+      faellig: a.faellig,
+      termin_id: a.termin_id,
+      projekt_id: a.projekt_id,
+      status: "offen",
+    })
+    .select("id")
+    .single();
+  if (error) { console.error(error); return meldung("Duplizieren hat nicht geklappt.", true); }
+  await neuLadenUndZeichnen();
+  const kopie = S.aufgaben.find((x) => x.id === data.id);
+  if (kopie) oeffneAufgabe(kopie);
+  meldung("Kopie angelegt – du kannst sie jetzt anpassen.");
+}
 
 // ------------------------------------------------------------------
 //  Mehr: Name, Kalender-Abo, Vorstandsliste

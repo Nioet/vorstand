@@ -6,6 +6,7 @@ Eine schlichte Web-App für den Vorstand:
 - **Aufgaben** in drei Spalten (Offen · In Arbeit · Erledigt), mit Zuständigen und Fristen, „Mach ich“-Knopf
 - **Unterpunkte zum Abhaken** an jedem Termin – jeweils mit Zuständigen und Frist
 - **Projekte**, die Termine und Aufgaben bündeln, mit Fortschrittsbalken
+- **Duplizieren** per ＋ auf jeder Karte: Termine (fragt nach neuem Datum), Aufgaben und ganze Projekte – Unterpunkte sind danach wieder offen
 - **Kalender-Abo**: alle Termine und Aufgaben-Fristen erscheinen automatisch im eigenen Handy-Kalender (iPhone, Android/Google, Outlook)
 - **Anmeldung ohne Passwort**: E-Mail-Adresse eingeben → Code aus der E-Mail eintippen (oder auf den Link tippen). Danach bleibt man auf dem Gerät angemeldet.
 - Änderungen erscheinen bei allen **sofort**, ohne Neuladen
@@ -17,7 +18,7 @@ Eine schlichte Web-App für den Vorstand:
 index.html, app.js, style.css    → die App
 config.js                        → HIER Supabase-Adresse + Schlüssel eintragen
 manifest.webmanifest, icon-*     → für „Zum Startbildschirm hinzufügen“
-supabase/migrations/…sql         → Datenbank (beide Dateien der Reihe nach ausführen)
+supabase/migrations/…sql         → Datenbank (alle Dateien der Reihe nach ausführen)
 supabase/functions/kalender/     → Kalender-Abo (.ics)
 supabase/email-vorlagen/         → deutsche Anmelde-E-Mail mit Code
 .github/workflows/wach-halten.yml→ optional: hält das Gratis-Projekt aktiv
@@ -39,7 +40,7 @@ Bereits erledigt: Supabase-Projekt **„Vorstand“** (Organisation „Grüne BK
 
 ### 2. Datenbank einrichten
 1. Im Dashboard links **SQL Editor** → **New query**.
-2. Den kompletten Inhalt von `supabase/migrations/20261121000000_vorstand.sql` einfügen → **Run**, danach genauso `20261121020000_projekte_unterpunkte.sql`.
+2. Den kompletten Inhalt von `supabase/migrations/20261121000000_vorstand.sql` einfügen → **Run**, danach genauso `20261121020000_projekte_unterpunkte.sql` und `20261121030000_duplizieren.sql`.
    Das Skript kann gefahrlos mehrfach ausgeführt werden.
 
 ### 3. Anmeldung einstellen

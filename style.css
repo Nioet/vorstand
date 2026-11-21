@@ -440,3 +440,30 @@ dialog details summary { cursor: pointer; color: var(--tanne); font-weight: 600;
 @media (max-width: 360px) { .leiste button { font-size: .8rem; } }
 .punkt-meta .ueberfaellig { color: var(--rot); font-weight: 700; }
 .punkt-meta .bald { color: var(--orange); font-weight: 700; }
+
+/* ---------- Duplizieren-Knopf (＋) ---------- */
+.karte-zeile { position: relative; }
+.karte-zeile > .termin, .karte-zeile > .projekt-karte { padding-right: 3.8rem; }
+.aufgabe { position: relative; }
+.aufgabe .titel-knopf { padding-right: 3.2rem; }
+.dupl-knopf {
+  position: absolute;
+  top: .55rem;
+  right: .55rem;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  border: 2px solid var(--linie);
+  background: var(--weiss);
+  color: var(--tanne);
+  font: inherit;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  z-index: 1;
+}
+.dupl-knopf:active { background: var(--sand); }
+.aufgabe .dupl-knopf { top: .45rem; right: .45rem; }
