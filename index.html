@@ -81,7 +81,15 @@
       <section id="seite-projekte" class="seite" hidden>
         <div id="projekte-uebersicht">
           <button class="knopf haupt breit" data-aktion="neues-projekt">＋ Neues Projekt</button>
+          <h2 class="monat">Projekte</h2>
           <div id="projekte-liste"></div>
+
+          <section class="projekt-abschnitt">
+            <h2 class="monat">In Planung</h2>
+            <div id="planung-liste"></div>
+            <button class="knopf breit" data-aktion="neue-planung">＋ Neues Projekt in Planung</button>
+          </section>
+
           <label class="haken"><input type="checkbox" id="zeige-abgeschlossene"> Abgeschlossene Projekte zeigen</label>
         </div>
         <div id="projekt-detail" hidden></div>
@@ -265,6 +273,7 @@
       <label for="p-zustaendig">Wer ist für das Projekt zuständig?</label>
       <select id="p-zustaendig"></select>
 
+      <label class="haken"><input id="p-planung" type="checkbox"> Noch in Planung</label>
       <label class="haken" id="p-abgeschlossen-zeile"><input id="p-abgeschlossen" type="checkbox"> Projekt ist abgeschlossen</label>
 
       <div class="dialog-knoepfe">

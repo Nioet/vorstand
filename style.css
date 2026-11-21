@@ -538,3 +538,10 @@ input[type="time"]::-webkit-datetime-edit { padding: 0; }
 
 /* Leeres Uhrzeitfeld auf iOS nicht zusammenfallen lassen */
 input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }
+
+/* ---------- Projekte in Planung ---------- */
+.projekt-abschnitt { margin-top: 2rem; padding-top: .2rem; border-top: 2px dashed var(--linie); }
+.projekt-abschnitt .monat { margin-top: 1.2rem; }
+.projekt-karte.ist-planung { background: #fbfaf5; border: 2px dashed var(--linie); box-shadow: none; }
+.marke.planung { background: #e9e4f5; color: #3e2a7a; }
+#projekte-uebersicht > .haken { margin-top: 1.5rem; }

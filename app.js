@@ -412,6 +412,8 @@ $(".inhalt").addEventListener("click", (e) => {
     case "neuer-termin": return oeffneTermin(null);
     case "neue-aufgabe": return oeffneAufgabe(null, { projekt_id: S.projektFilter || null });
     case "neues-projekt": return oeffneProjekt(null);
+    case "neue-planung": return oeffneProjekt(null, { in_planung: true });
+    case "projekt-starten": return p && projektStarten(p);
     case "projekte-zurueck": S.projektOffen = null; zeichneProjekte(); return window.scrollTo(0, 0);
     case "projekt-bearbeiten": return p && oeffneProjekt(p);
     case "projekt-termin": return p && oeffneTermin(null, { projekt_id: p.id });
@@ -582,7 +584,7 @@ function projektOptionen(select, gewaehlt) {
   const liste = S.projekte.filter((p) => !p.abgeschlossen || p.id === gewaehlt).sort(nachText("name"));
   select.innerHTML =
     `<option value="">— kein Projekt —</option>` +
-    liste.map((p) => `<option value="${p.id}">${esc(p.name)}${p.abgeschlossen ? " (abgeschlossen)" : ""}</option>`).join("");
+    liste.map((p) => `<option value="${p.id}">${esc(p.name)}${p.abgeschlossen ? " (abgeschlossen)" : p.in_planung ? " (in Planung)" : ""}</option>`).join("");
   select.value = gewaehlt || "";
 }
 
@@ -802,7 +804,7 @@ function zeichneAufgaben() {
   if (S.projektFilter && !projektVon(S.projektFilter)) S.projektFilter = "";
   auswahl.innerHTML =
     `<option value="">Alle Projekte</option>` +
-    aktive.map((p) => `<option value="${p.id}">📁 ${esc(p.name)}</option>`).join("");
+    aktive.map((p) => `<option value="${p.id}">📁 ${esc(p.name)}${p.in_planung ? " (in Planung)" : ""}</option>`).join("");
   auswahl.value = S.projektFilter;
   auswahl.hidden = !S.projekte.length;
 
@@ -985,28 +987,35 @@ function zeichneProjekte() {
   if (!p) {
     detail.hidden = true;
     uebersicht.hidden = false;
-    const liste = S.projekte
-      .filter((x) => S.zeigeAbgeschlossene || !x.abgeschlossen)
-      .sort((x, y) => (x.abgeschlossen === y.abgeschlossen ? nachText("name")(x, y) : x.abgeschlossen ? 1 : -1));
-    $("#projekte-liste").innerHTML = liste.length
-      ? liste.map((x) => {
-          const z = projektZahlen(x);
-          const wer = nameVon(x.zustaendig);
-          const meta = [
-            wer ? `👤 ${esc(wer)}${x.zustaendig === S.userId ? " (ich)" : ""}` : "",
-            z.aufgaben.length ? `✅ ${z.offen} offen` : "noch keine Aufgaben",
-            z.naechster ? `📅 nächster Termin: ${esc(langesDatum(z.naechster.datum))}` : "",
-            x.abgeschlossen ? "✔ abgeschlossen" : "",
-          ].filter(Boolean).join(" · ");
-          return `<div class="karte-zeile"><button class="projekt-karte${x.abgeschlossen ? " ist-abgeschlossen" : ""}" data-projekt="${x.id}">
-            <strong>📁 ${esc(x.name)}</strong>
-            ${x.beschreibung ? `<span class="beschreibung">${esc(x.beschreibung.length > 120 ? x.beschreibung.slice(0, 120) + " …" : x.beschreibung)}</span>` : ""}
-            ${z.aufgaben.length ? balken(z.erledigt / z.aufgaben.length) : ""}
-            <span class="meta">${meta}</span>
-          </button>
-          <button class="dupl-knopf" data-dupl-projekt="${x.id}" aria-label="Projekt „${esc(x.name)}“ duplizieren" title="Duplizieren">＋</button></div>`;
-        }).join("")
-      : `<p class="leer">${S.projekte.length ? "Keine offenen Projekte." : "Noch keine Projekte. Ein Projekt sammelt Termine und Aufgaben, z. B. „Neujahrsempfang“ oder „Wahlkampf“."}</p>`;
+    const karte = (x) => {
+      const z = projektZahlen(x);
+      const wer = nameVon(x.zustaendig);
+      const meta = [
+        wer ? `👤 ${esc(wer)}${x.zustaendig === S.userId ? " (ich)" : ""}` : "",
+        z.aufgaben.length ? `✅ ${z.offen} offen` : "noch keine Aufgaben",
+        z.naechster ? `📅 nächster Termin: ${esc(langesDatum(z.naechster.datum))}` : "",
+        x.abgeschlossen ? "✔ abgeschlossen" : "",
+      ].filter(Boolean).join(" · ");
+      const klasse = x.abgeschlossen ? " ist-abgeschlossen" : x.in_planung ? " ist-planung" : "";
+      return `<div class="karte-zeile"><button class="projekt-karte${klasse}" data-projekt="${x.id}">
+        <strong>📁 ${esc(x.name)}</strong>
+        ${x.beschreibung ? `<span class="beschreibung">${esc(x.beschreibung.length > 120 ? x.beschreibung.slice(0, 120) + " …" : x.beschreibung)}</span>` : ""}
+        ${z.aufgaben.length ? balken(z.erledigt / z.aufgaben.length) : ""}
+        <span class="meta">${meta}</span>
+      </button>
+      <button class="dupl-knopf" data-dupl-projekt="${x.id}" aria-label="Projekt „${esc(x.name)}“ duplizieren" title="Duplizieren">＋</button></div>`;
+    };
+    const sortiert = (liste) => liste.sort(nachText("name"));
+    const laufend = sortiert(S.projekte.filter((x) => !x.abgeschlossen && !x.in_planung));
+    const planung = sortiert(S.projekte.filter((x) => !x.abgeschlossen && x.in_planung));
+    const fertig = S.zeigeAbgeschlossene ? sortiert(S.projekte.filter((x) => x.abgeschlossen)) : [];
+
+    $("#projekte-liste").innerHTML =
+      [...laufend, ...fertig].map(karte).join("") ||
+      `<p class="leer">${S.projekte.length ? "Gerade keine laufenden Projekte." : "Noch keine Projekte. Ein Projekt sammelt Termine und Aufgaben, z. B. „Neujahrsempfang“ oder „Wahlkampf“."}</p>`;
+    $("#planung-liste").innerHTML =
+      planung.map(karte).join("") ||
+      `<p class="leer">Hier sammelt ihr Vorhaben, die noch nicht feststehen.</p>`;
     $("#zeige-abgeschlossene").checked = S.zeigeAbgeschlossene;
     $("#zeige-abgeschlossene").parentElement.hidden = !S.projekte.some((x) => x.abgeschlossen);
     return;
@@ -1026,10 +1035,11 @@ function zeichneProjekte() {
     <button class="knopf leise" data-aktion="projekte-zurueck">← Alle Projekte</button>
     <div class="karte projekt-kopf karte-zeile">
       <button class="dupl-knopf" data-dupl-projekt="${p.id}" aria-label="Projekt duplizieren" title="Duplizieren">＋</button>
-      <h2 style="padding-right:3.2rem">📁 ${esc(p.name)}${p.abgeschlossen ? ' <span class="marke">abgeschlossen</span>' : ""}</h2>
+      <h2 style="padding-right:3.2rem">📁 ${esc(p.name)}${p.abgeschlossen ? ' <span class="marke">abgeschlossen</span>' : p.in_planung ? ' <span class="marke planung">in Planung</span>' : ""}</h2>
       ${p.beschreibung ? `<p>${esc(p.beschreibung)}</p>` : ""}
       <p>👤 ${p.zustaendig ? `Zuständig: <strong>${esc(nameVon(p.zustaendig) || "?")}</strong>${p.zustaendig === S.userId ? " (ich)" : ""}` : "Noch niemand zuständig"}</p>
       ${z.aufgaben.length ? `${balken(z.erledigt / z.aufgaben.length)}<p class="klein">${z.erledigt} von ${z.aufgaben.length} Aufgaben erledigt</p>` : ""}
+      ${p.in_planung && !p.abgeschlossen ? `<button class="knopf haupt breit" data-aktion="projekt-starten">▶ Projekt starten</button>` : ""}
       <button class="knopf breit" data-aktion="projekt-bearbeiten">Projekt bearbeiten</button>
     </div>
 
@@ -1063,9 +1073,18 @@ function zeichneProjekte() {
 const dP = $("#dialog-projekt");
 let bearbeitetesProjekt = null;
 
-function oeffneProjekt(p = null) {
+async function projektStarten(p) {
+  const { error } = await sb.from("projekte").update({ in_planung: false }).eq("id", p.id);
+  if (error) return meldung("Das hat nicht geklappt.", true);
+  meldung("Projekt gestartet – es steht jetzt oben bei den Projekten.");
+  await neuLadenUndZeichnen();
+}
+
+function oeffneProjekt(p = null, vorgabe = {}) {
   bearbeitetesProjekt = p;
-  $("#projekt-ueberschrift").textContent = p ? "Projekt bearbeiten" : "Neues Projekt";
+  const planung = p ? !!p.in_planung : !!vorgabe.in_planung;
+  $("#projekt-ueberschrift").textContent = p ? "Projekt bearbeiten" : planung ? "Neues Projekt in Planung" : "Neues Projekt";
+  $("#p-planung").checked = planung;
   $("#p-name").value = p?.name || "";
   $("#p-beschreibung").value = p?.beschreibung || "";
   $("#p-abgeschlossen").checked = !!p?.abgeschlossen;
@@ -1084,6 +1103,7 @@ dP.addEventListener("close", async () => {
     beschreibung: leer($("#p-beschreibung").value),
     abgeschlossen: $("#p-abgeschlossen").checked,
     zustaendig: $("#p-zustaendig").value || null,
+    in_planung: $("#p-planung").checked,
   };
   let fehler, neueId;
   if (bearbeitetesProjekt) {
