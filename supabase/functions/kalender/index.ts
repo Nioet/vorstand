@@ -17,7 +17,7 @@ export type Termin = {
   beschreibung: string | null;
   updated_at: string;
   projekt_name?: string | null;
-  unterpunkte?: { titel: string; erledigt: boolean; wer: string | null; faellig: string | null }[];
+  unterpunkte?: { titel: string; erledigt: boolean; wer: string | null; faellig: string | null; zeit?: string | null }[];
 };
 
 export type Aufgabe = {
@@ -30,6 +30,7 @@ export type Aufgabe = {
   updated_at: string;
   termin_titel?: string | null;
   projekt_name?: string | null;
+  faellig_zeit?: string | null;
 };
 
 const TZID = "Europe/Berlin";
@@ -131,7 +132,8 @@ function terminZuEvent(t: Termin, jetzt: string, domain: string, appUrl?: string
   if (t.ort) z.push(`LOCATION:${esc(t.ort)}`);
   const link = appUrl ? `${appUrl}?termin=${t.id}` : null;
   const punkte = (t.unterpunkte ?? []).map((u) => {
-    const extra = [u.wer, u.faellig ? `bis ${kurz(u.faellig)}` : null].filter(Boolean).join(", ");
+    const frist = u.faellig ? `bis ${kurz(u.faellig)}${u.zeit ? ` ${u.zeit.slice(0, 5)} Uhr` : ""}` : null;
+    const extra = [u.wer, frist].filter(Boolean).join(", ");
     return `${u.erledigt ? "☑" : "☐"} ${u.titel}${extra ? ` (${extra})` : ""}`;
   });
   const text = [
@@ -163,8 +165,10 @@ function aufgabeZuEvent(a: Aufgabe, jetzt: string, domain: string, appUrl?: stri
     `DTSTAMP:${jetzt}`,
     `LAST-MODIFIED:${utcStempel(a.updated_at)}`,
     `SUMMARY:${esc(`Frist: ${a.titel}${wer}`)}`,
-    `DTSTART;VALUE=DATE:${tag(a.faellig)}`,
-    `DTEND;VALUE=DATE:${tag(plusTage(a.faellig, 1))}`,
+    // Mit Uhrzeit als kurzer Termin zu dieser Zeit, sonst ganztägig
+    ...(a.faellig_zeit
+      ? [`DTSTART;TZID=${TZID}:${tag(a.faellig)}T${uhr(a.faellig_zeit)}`, "DURATION:PT30M"]
+      : [`DTSTART;VALUE=DATE:${tag(a.faellig)}`, `DTEND;VALUE=DATE:${tag(plusTage(a.faellig, 1))}`]),
     `DESCRIPTION:${esc(beschreibung)}`,
     ...(appUrl ? [`URL:${appUrl}?aufgabe=${a.id}`] : []),
     "CATEGORIES:Aufgabe",
@@ -251,7 +255,7 @@ async function antworte(req: Request): Promise<Response> {
     ),
     // offene Aufgaben + alle Unterpunkte (auch erledigte, für die Checkliste)
     lies<AufgabeRoh[]>(
-      `aufgaben?select=id,titel,beschreibung,faellig,status,updated_at,created_at,termin_id,projekt_id,` +
+      `aufgaben?select=id,titel,beschreibung,faellig,faellig_zeit,status,updated_at,created_at,termin_id,projekt_id,` +
         `profiles!aufgaben_zustaendig_fkey(name,email)&or=(status.neq.erledigt,termin_id.not.is.null)&order=created_at`,
     ),
     lies<{ id: string; name: string }[]>("projekte?select=id,name"),
@@ -265,7 +269,7 @@ async function antworte(req: Request): Promise<Response> {
     projekt_name: t.projekt_id ? projektName.get(t.projekt_id) ?? null : null,
     unterpunkte: aufgabenRoh
       .filter((a) => a.termin_id === t.id)
-      .map((a) => ({ titel: a.titel, erledigt: a.status === "erledigt", wer: werVon(a), faellig: a.faellig })),
+      .map((a) => ({ titel: a.titel, erledigt: a.status === "erledigt", wer: werVon(a), faellig: a.faellig, zeit: a.faellig_zeit ?? null })),
   }));
 
   let aufgaben: Aufgabe[] = [];
@@ -280,6 +284,7 @@ async function antworte(req: Request): Promise<Response> {
           titel: a.titel,
           beschreibung: a.beschreibung,
           faellig: a.faellig as string,
+          faellig_zeit: a.faellig_zeit ?? null,
           status: a.status,
           updated_at: a.updated_at,
           zustaendig_name: werVon(a),

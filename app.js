@@ -476,12 +476,16 @@ function terminKarte(t, { mitMarke = true, mitProjekt = true } = {}) {
 
 function fristText(a) {
   if (!a.faellig) return "";
-  if (a.status === "erledigt") return `📅 war bis ${esc(langesDatum(a.faellig))}`;
+  const zeit = a.faellig_zeit ? `${uhr(a.faellig_zeit)} Uhr` : "";
+  if (a.status === "erledigt") return `📅 war bis ${esc(langesDatum(a.faellig))}${zeit ? ", " + zeit : ""}`;
   const n = tageBis(a.faellig);
+  const jetzt = new Date();
+  const vorbei = n === 0 && zeit && a.faellig_zeit.slice(0, 5) < `${pad(jetzt.getHours())}:${pad(jetzt.getMinutes())}`;
   if (n < 0) return `<span class="ueberfaellig">⚠️ überfällig seit ${-n === 1 ? "gestern" : `${-n} Tagen`}</span>`;
-  if (n === 0) return `<span class="bald">📅 heute fällig</span>`;
-  if (n === 1) return `<span class="bald">📅 morgen fällig</span>`;
-  return `📅 bis ${esc(langesDatum(a.faellig))}`;
+  if (vorbei) return `<span class="ueberfaellig">⚠️ überfällig seit ${zeit}</span>`;
+  if (n === 0) return `<span class="bald">📅 heute ${zeit ? "bis " + zeit : "fällig"}</span>`;
+  if (n === 1) return `<span class="bald">📅 morgen ${zeit ? "bis " + zeit : "fällig"}</span>`;
+  return `📅 bis ${esc(langesDatum(a.faellig))}${zeit ? ", " + zeit : ""}`;
 }
 
 function aufgabeHtml(a, { mitProjekt = true, liste = null } = {}) {
@@ -540,7 +544,7 @@ function zeichneTermine() {
     eintraege.push(
       ...S.aufgaben
         .filter((a) => a.faellig && a.status !== "erledigt" && a.faellig >= h && !a.termin_id)
-        .map((a) => ({ art: "frist", datum: a.faellig, sort: a.faellig + "23:59", a })),
+        .map((a) => ({ art: "frist", datum: a.faellig, sort: a.faellig + (a.faellig_zeit ? a.faellig_zeit.slice(0, 5) : "23:59"), a })),
     );
   }
   eintraege.sort((x, y) => (x.sort < y.sort ? -1 : x.sort > y.sort ? 1 : 0));
@@ -566,6 +570,7 @@ function zeichneTermine() {
       html += `<button class="termin frist" data-aufgabe="${a.id}">${datumBlock(a.faellig)}
         <span class="termin-text">
           <strong>Frist: ${esc(a.titel)}${relMarke(a.faellig)}</strong>
+          ${a.faellig_zeit ? `<span class="zeit">bis ${uhr(a.faellig_zeit)} Uhr</span><br>` : ""}
           <span class="ort">👤 ${esc(wer || "noch niemand zuständig")}</span>
           ${proj ? `<span class="etiketten">${proj}</span>` : ""}
         </span></button>`;
@@ -917,12 +922,23 @@ function projektHinweisAktualisieren() {
 }
 $("#a-termin").addEventListener("change", projektHinweisAktualisieren);
 
+// Uhrzeit nur zusammen mit einem Datum
+function zeitFeldUmschalten() {
+  const ohneDatum = !$("#a-faellig").value;
+  $("#a-zeit").disabled = ohneDatum;
+  if (ohneDatum) $("#a-zeit").value = "";
+}
+$("#a-faellig").addEventListener("change", zeitFeldUmschalten);
+$("#a-faellig").addEventListener("input", zeitFeldUmschalten);
+
 function oeffneAufgabe(a = null, vorgabe = {}) {
   bearbeiteteAufgabe = a;
   $("#aufgabe-ueberschrift").textContent = a ? (a.termin_id ? "Unterpunkt bearbeiten" : "Aufgabe bearbeiten") : "Neue Aufgabe";
   $("#a-titel").value = a?.titel || "";
   personenAuswahl(a?.zustaendig);
   $("#a-faellig").value = a?.faellig || "";
+  $("#a-zeit").value = uhr(a?.faellig_zeit);
+  zeitFeldUmschalten();
   $("#a-status").value = a?.status || "offen";
   $("#a-notiz").value = a?.beschreibung || "";
   terminAuswahl(a ? a.termin_id : vorgabe.termin_id);
@@ -940,6 +956,7 @@ dA.addEventListener("close", async () => {
     titel: $("#a-titel").value.trim(),
     zustaendig: $("#a-wer").value || null,
     faellig: $("#a-faellig").value || null,
+    faellig_zeit: ($("#a-faellig").value && $("#a-zeit").value) || null,
     status: $("#a-status").value,
     beschreibung: leer($("#a-notiz").value),
     termin_id: $("#a-termin").value || null,
@@ -1273,6 +1290,7 @@ async function dupliziereAufgabe(a) {
       beschreibung: a.beschreibung,
       zustaendig: a.zustaendig,
       faellig: a.faellig,
+      faellig_zeit: a.faellig_zeit,
       termin_id: a.termin_id,
       projekt_id: a.projekt_id,
       status: "offen",

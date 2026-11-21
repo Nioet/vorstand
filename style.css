@@ -545,3 +545,8 @@ input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }
 .projekt-karte.ist-planung { background: #fbfaf5; border: 2px dashed var(--linie); box-shadow: none; }
 .marke.planung { background: #e9e4f5; color: #3e2a7a; }
 #projekte-uebersicht > .haken { margin-top: 1.5rem; }
+
+/* ---------- Frist mit Uhrzeit ---------- */
+.frist-zeile > div:first-child { flex: 1.5 1 0; }
+.frist-zeile > .zeit-feld { flex: 1 1 0; }
+.frist-zeile input:disabled { opacity: .45; }
