@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Vorstand</title>
+  <meta name="theme-color" content="#005437">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Vorstand">
+  <link rel="stylesheet" href="style.css">
+  <script src="config.js"></script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <!-- Ladeanzeige -->
+  <div id="laden" class="laden">Einen Moment …</div>
+
+  <!-- Anmeldung -->
+  <main id="anmeldung" class="anmeldung" hidden>
+    <div class="karte anmelde-karte">
+      <h1 class="app-titel"></h1>
+
+      <form id="form-email">
+        <p>Gib deine E-Mail-Adresse ein. Du bekommst dann eine E-Mail mit einem Code.</p>
+        <label for="email">E-Mail-Adresse</label>
+        <input id="email" type="email" autocomplete="email" inputmode="email" required>
+        <button type="submit" class="knopf haupt breit">Code schicken</button>
+      </form>
+
+      <form id="form-code" hidden>
+        <p>Wir haben dir eine E-Mail an <strong id="email-anzeige"></strong> geschickt.</p>
+        <p>Gib den Code aus der E-Mail hier ein – oder tippe in der E-Mail einfach auf den Link.</p>
+        <label for="code">Code aus der E-Mail</label>
+        <input id="code" type="text" inputmode="numeric" autocomplete="one-time-code"
+               pattern="[0-9]{6,8}" maxlength="8" required class="code-feld">
+        <button type="submit" class="knopf haupt breit">Anmelden</button>
+        <button type="button" id="andere-email" class="knopf leise breit">Andere E-Mail-Adresse</button>
+      </form>
+
+      <p id="anmelde-fehler" class="fehler" role="alert" hidden></p>
+    </div>
+  </main>
+
+  <!-- Die eigentliche App -->
+  <div id="app" hidden>
+    <header class="kopf">
+      <h1 class="app-titel"></h1>
+    </header>
+
+    <main class="inhalt">
+      <!-- Termine -->
+      <section id="seite-termine" class="seite">
+        <button class="knopf haupt breit" data-aktion="neuer-termin">＋ Neuer Termin</button>
+        <div class="umschalter" role="tablist" aria-label="Zeitraum">
+          <button role="tab" class="aktiv" data-zeitraum="kommend">Kommende</button>
+          <button role="tab" data-zeitraum="vergangen">Vergangene</button>
+        </div>
+        <div id="termin-liste"></div>
+      </section>
+
+      <!-- Aufgaben -->
+      <section id="seite-aufgaben" class="seite" hidden>
+        <button class="knopf haupt breit" data-aktion="neue-aufgabe">＋ Neue Aufgabe</button>
+        <div class="umschalter" role="tablist" aria-label="Filter">
+          <button role="tab" class="aktiv" data-filter="alle">Alle</button>
+          <button role="tab" data-filter="meine">Meine</button>
+          <button role="tab" data-filter="niemand">Ohne Zuständige</button>
+        </div>
+        <div id="aufgaben-board" class="board"></div>
+      </section>
+
+      <!-- Mehr -->
+      <section id="seite-mehr" class="seite" hidden>
+        <div class="karte">
+          <h2>Mein Name</h2>
+          <p class="klein">So sehen dich die anderen bei Aufgaben.</p>
+          <form id="form-name" class="zeile">
+            <input id="mein-name" type="text" autocomplete="name" required aria-label="Mein Name">
+            <button class="knopf haupt">Speichern</button>
+          </form>
+        </div>
+
+        <div class="karte">
+          <h2>Kalender aufs Handy holen</h2>
+          <p>Damit erscheinen alle Termine und Aufgaben-Fristen automatisch in deinem normalen Handy-Kalender.</p>
+          <a id="abo-webcal" class="knopf haupt breit" href="#">📅 Kalender abonnieren</a>
+          <button id="abo-kopieren" class="knopf breit">Link kopieren</button>
+          <details class="hilfe">
+            <summary>So geht's Schritt für Schritt</summary>
+            <p><strong>iPhone:</strong> Auf „Kalender abonnieren“ tippen und dann „Abonnieren“ bestätigen.</p>
+            <p><strong>Android / Google Kalender:</strong> „Link kopieren“ tippen. Am Computer
+              <em>calendar.google.com</em> öffnen → links bei „Weitere Kalender“ auf ＋ → „Per URL“ → Link einfügen.
+              Danach erscheint er auch auf dem Handy. Google aktualisiert abonnierte Kalender nur alle paar Stunden.</p>
+            <p><strong>Outlook:</strong> „Link kopieren“ → Kalender → „Kalender hinzufügen“ → „Aus dem Internet abonnieren“.</p>
+            <p class="klein">Den Link bitte nicht weitergeben – wer ihn hat, sieht alle Termine.</p>
+          </details>
+        </div>
+
+        <div class="karte">
+          <h2>App auf den Startbildschirm</h2>
+          <p><strong>iPhone:</strong> In Safari unten auf das Teilen-Symbol (Quadrat mit Pfeil) → „Zum Home-Bildschirm“.</p>
+          <p><strong>Android:</strong> In Chrome oben rechts auf ⋮ → „Zum Startbildschirm hinzufügen“.</p>
+        </div>
+
+        <div class="karte">
+          <h2>Wer ist im Vorstand?</h2>
+          <ul id="vorstand-liste" class="personen"></ul>
+        </div>
+
+        <div class="karte">
+          <h2>Wenn jemand den Vorstand verlässt</h2>
+          <p class="klein">Ein neuer Kalender-Link sorgt dafür, dass alte Abos nicht mehr funktionieren.
+            Alle anderen müssen den Kalender danach neu abonnieren.</p>
+          <button id="abo-erneuern" class="knopf warnung breit">Neuen Kalender-Link erzeugen</button>
+        </div>
+
+        <button id="abmelden" class="knopf leise breit">Abmelden</button>
+      </section>
+    </main>
+
+    <nav class="leiste" aria-label="Bereiche">
+      <button data-seite="termine" class="aktiv"><span aria-hidden="true">📅</span>Termine</button>
+      <button data-seite="aufgaben"><span aria-hidden="true">✅</span>Aufgaben</button>
+      <button data-seite="mehr"><span aria-hidden="true">☰</span>Mehr</button>
+    </nav>
+  </div>
+
+  <!-- Termin bearbeiten -->
+  <dialog id="dialog-termin">
+    <form method="dialog" id="form-termin">
+      <h2 id="termin-ueberschrift">Neuer Termin</h2>
+      <label for="t-titel">Was?</label>
+      <input id="t-titel" required placeholder="z. B. Vorstandssitzung">
+
+      <label for="t-datum">Datum</label>
+      <input id="t-datum" type="date" required>
+
+      <label class="haken"><input id="t-ganztags" type="checkbox"> Ganztägig (ohne Uhrzeit)</label>
+
+      <div class="zeile zeiten">
+        <div><label for="t-start">Von</label><input id="t-start" type="time"></div>
+        <div><label for="t-ende">Bis</label><input id="t-ende" type="time"></div>
+      </div>
+
+      <details id="t-mehrtaegig">
+        <summary>Geht über mehrere Tage?</summary>
+        <label for="t-bis">Letzter Tag</label>
+        <input id="t-bis" type="date">
+      </details>
+
+      <label for="t-ort">Wo?</label>
+      <input id="t-ort" placeholder="Ort oder Video-Link">
+
+      <label for="t-notiz">Notiz</label>
+      <textarea id="t-notiz" rows="3" placeholder="z. B. Tagesordnung"></textarea>
+
+      <div class="dialog-knoepfe">
+        <button type="submit" value="speichern" class="knopf haupt">Speichern</button>
+        <button type="submit" value="abbrechen" formnovalidate class="knopf">Abbrechen</button>
+      </div>
+      <button type="button" id="t-loeschen" class="knopf warnung breit" hidden>Termin löschen</button>
+    </form>
+  </dialog>
+
+  <!-- Aufgabe bearbeiten -->
+  <dialog id="dialog-aufgabe">
+    <form method="dialog" id="form-aufgabe">
+      <h2 id="aufgabe-ueberschrift">Neue Aufgabe</h2>
+      <label for="a-titel">Was ist zu tun?</label>
+      <input id="a-titel" required placeholder="z. B. Flyer bestellen">
+
+      <label for="a-wer">Wer kümmert sich?</label>
+      <select id="a-wer"></select>
+
+      <label for="a-faellig">Bis wann? (freiwillig)</label>
+      <input id="a-faellig" type="date">
+
+      <label for="a-status">Stand</label>
+      <select id="a-status">
+        <option value="offen">Offen</option>
+        <option value="in_arbeit">In Arbeit</option>
+        <option value="erledigt">Erledigt</option>
+      </select>
+
+      <label for="a-notiz">Notiz</label>
+      <textarea id="a-notiz" rows="3"></textarea>
+
+      <div class="dialog-knoepfe">
+        <button type="submit" value="speichern" class="knopf haupt">Speichern</button>
+        <button type="submit" value="abbrechen" formnovalidate class="knopf">Abbrechen</button>
+      </div>
+      <button type="button" id="a-loeschen" class="knopf warnung breit" hidden>Aufgabe löschen</button>
+    </form>
+  </dialog>
+
+  <div id="meldung" class="meldung" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

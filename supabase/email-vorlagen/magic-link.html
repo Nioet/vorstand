@@ -1,0 +1,15 @@
+<!-- In Supabase unter Authentication → Emails → Templates → "Magic Link" einfügen.
+     Betreff-Vorschlag: Dein Anmelde-Code: {{ .Token }} -->
+<div style="font-family: system-ui, sans-serif; font-size: 18px; line-height: 1.5; color: #1b1b1b; max-width: 480px;">
+  <p>Hallo,</p>
+  <p>hier ist dein Code für die Vorstands-App:</p>
+  <p style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #005437; margin: 24px 0;">{{ .Token }}</p>
+  <p>Gib ihn in der App ein. Oder tippe einfach auf diesen Knopf:</p>
+  <p style="margin: 24px 0;">
+    <a href="{{ .ConfirmationURL }}"
+       style="background: #005437; color: #ffffff; padding: 14px 24px; border-radius: 10px; text-decoration: none; font-weight: bold;">
+      Jetzt anmelden
+    </a>
+  </p>
+  <p style="color: #5b5b5b; font-size: 15px;">Der Code gilt eine Stunde. Wenn du dich nicht anmelden wolltest, kannst du diese E-Mail einfach löschen.</p>
+</div>
