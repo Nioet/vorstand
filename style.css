@@ -486,3 +486,55 @@ dialog details summary { cursor: pointer; color: var(--tanne); font-weight: 600;
 /* ---------- Datensicherung ---------- */
 #letzte-sicherung.alt { color: var(--rot); font-weight: 700; }
 label.knopf { display: flex; font-weight: 600; margin: .6rem 0 0; }
+
+/* ---------- iPhone: Datum/Uhrzeit sauber, Fenster ruhig ---------- */
+/* Seite dahinter nicht mitscrollen, kein Gummiband-Wackeln */
+html { overscroll-behavior: none; }
+html:has(dialog[open]), body:has(dialog[open]) { overflow: hidden; }
+dialog {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* iOS gibt Datum/Uhrzeit-Feldern eine eigene Mindestbreite und zentriert den Text */
+input[type="date"],
+input[type="time"] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  text-align: left;
+  line-height: 1.4;
+}
+input[type="date"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+}
+input[type="date"]::-webkit-datetime-edit,
+input[type="time"]::-webkit-datetime-edit { padding: 0; }
+.zeile > div { min-width: 0; flex: 1 1 0; }
+
+/* Auf iPhone/iPad fehlt das Symbol im Feld – dezent ergänzen */
+@supports (-webkit-touch-callout: none) {
+  input[type="date"],
+  input[type="time"] {
+    padding-right: 2.6rem;
+    background-repeat: no-repeat;
+    background-position: right .8rem center;
+    background-size: 1.2rem;
+  }
+  input[type="date"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23005437' stroke-width='2' stroke-linecap='round'%3E%3Crect x='3' y='5' width='18' height='16' rx='2'/%3E%3Cpath d='M3 10h18M8 3v4M16 3v4'/%3E%3C/svg%3E");
+  }
+  input[type="time"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23005437' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/svg%3E");
+  }
+}
+
+/* Leeres Uhrzeitfeld auf iOS nicht zusammenfallen lassen */
+input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }

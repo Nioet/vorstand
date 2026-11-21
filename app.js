@@ -593,10 +593,11 @@ function titelVorgabeAktualisieren() {
   feld.required = !p;
   feld.placeholder = p ? p.name : "z. B. Vorstandssitzung";
   const hinweis = $("#t-titel-hinweis");
-  hinweis.hidden = !p;
+  hinweis.hidden = !p || feld.value.trim() !== "";
   hinweis.textContent = p ? `Leer lassen, dann heißt der Termin „${p.name}“.` : "";
 }
 $("#t-projekt").addEventListener("change", titelVorgabeAktualisieren);
+$("#t-titel").addEventListener("input", titelVorgabeAktualisieren);
 
 function ganztagsUmschalten() {
   const ganz = $("#t-ganztags").checked;
