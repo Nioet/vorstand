@@ -16,6 +16,8 @@ export type Termin = {
   ort: string | null;
   beschreibung: string | null;
   updated_at: string;
+  projekt_name?: string | null;
+  unterpunkte?: { titel: string; erledigt: boolean; wer: string | null; faellig: string | null }[];
 };
 
 export type Aufgabe = {
@@ -26,6 +28,8 @@ export type Aufgabe = {
   status: string;
   zustaendig_name: string | null;
   updated_at: string;
+  termin_titel?: string | null;
+  projekt_name?: string | null;
 };
 
 const TZID = "Europe/Berlin";
@@ -82,6 +86,7 @@ export function fold(line: string): string {
 }
 
 const tag = (d: string) => d.replaceAll("-", "");
+const kurz = (d: string) => { const [, m, t] = d.split("-"); return `${Number(t)}.${Number(m)}.`; };
 const uhr = (t: string) => t.slice(0, 8).padEnd(8, ":00").replaceAll(":", "").slice(0, 6);
 
 function plusTage(d: string, n: number): string {
@@ -125,8 +130,18 @@ function terminZuEvent(t: Termin, jetzt: string, domain: string, appUrl?: string
   }
   if (t.ort) z.push(`LOCATION:${esc(t.ort)}`);
   const link = appUrl ? `${appUrl}?termin=${t.id}` : null;
-  const text = [t.beschreibung, link ? `Bearbeiten in der App: ${link}` : null].filter(Boolean).join("\n\n");
+  const punkte = (t.unterpunkte ?? []).map((u) => {
+    const extra = [u.wer, u.faellig ? `bis ${kurz(u.faellig)}` : null].filter(Boolean).join(", ");
+    return `${u.erledigt ? "☑" : "☐"} ${u.titel}${extra ? ` (${extra})` : ""}`;
+  });
+  const text = [
+    t.beschreibung,
+    t.projekt_name ? `Projekt: ${t.projekt_name}` : null,
+    punkte.length ? `Unterpunkte:\n${punkte.join("\n")}` : null,
+    link ? `Bearbeiten in der App: ${link}` : null,
+  ].filter(Boolean).join("\n\n");
   if (text) z.push(`DESCRIPTION:${esc(text)}`);
+  if (t.projekt_name) z.push(`CATEGORIES:${esc(t.projekt_name)}`);
   if (link) z.push(`URL:${link}`);
   z.push("END:VEVENT");
   return z;
@@ -137,6 +152,8 @@ function aufgabeZuEvent(a: Aufgabe, jetzt: string, domain: string, appUrl?: stri
   const beschreibung = [
     a.status === "in_arbeit" ? "Status: in Arbeit" : "Status: offen",
     a.zustaendig_name ? `Zuständig: ${a.zustaendig_name}` : "Noch niemand zuständig",
+    a.termin_titel ? `Für den Termin: ${a.termin_titel}` : "",
+    a.projekt_name ? `Projekt: ${a.projekt_name}` : "",
     a.beschreibung ?? "",
     appUrl ? `\nBearbeiten in der App: ${appUrl}?aufgabe=${a.id}` : "",
   ].filter(Boolean).join("\n");
@@ -221,22 +238,55 @@ async function antworte(req: Request): Promise<Response> {
 
   // Termine ab einem halben Jahr zurück
   const ab = new Date(Date.now() - 183 * 24 * 3600 * 1000).toISOString().slice(0, 10);
-  const termine = await lies<Termin[]>(
-    `termine?select=id,titel,datum,bis_datum,start_zeit,end_zeit,ort,beschreibung,updated_at` +
-      `&or=(datum.gte.${ab},bis_datum.gte.${ab})&order=datum`,
-  );
+  type TerminRoh = Termin & { projekt_id: string | null };
+  type AufgabeRoh = Omit<Aufgabe, "zustaendig_name"> & {
+    termin_id: string | null;
+    projekt_id: string | null;
+    profiles: { name: string | null; email: string | null } | null;
+  };
+  const [termineRoh, aufgabenRoh, projekte] = await Promise.all([
+    lies<TerminRoh[]>(
+      `termine?select=id,titel,datum,bis_datum,start_zeit,end_zeit,ort,beschreibung,updated_at,projekt_id` +
+        `&or=(datum.gte.${ab},bis_datum.gte.${ab})&order=datum`,
+    ),
+    // offene Aufgaben + alle Unterpunkte (auch erledigte, für die Checkliste)
+    lies<AufgabeRoh[]>(
+      `aufgaben?select=id,titel,beschreibung,faellig,status,updated_at,created_at,termin_id,projekt_id,` +
+        `profiles!aufgaben_zustaendig_fkey(name,email)&or=(status.neq.erledigt,termin_id.not.is.null)&order=created_at`,
+    ),
+    lies<{ id: string; name: string }[]>("projekte?select=id,name"),
+  ]);
+  const projektName = new Map(projekte.map((p) => [p.id, p.name]));
+  const terminById = new Map(termineRoh.map((t) => [t.id, t]));
+  const werVon = (a: AufgabeRoh) => (a.profiles ? (a.profiles.name || a.profiles.email) : null);
+
+  const termine: Termin[] = termineRoh.map((t) => ({
+    ...t,
+    projekt_name: t.projekt_id ? projektName.get(t.projekt_id) ?? null : null,
+    unterpunkte: aufgabenRoh
+      .filter((a) => a.termin_id === t.id)
+      .map((a) => ({ titel: a.titel, erledigt: a.status === "erledigt", wer: werVon(a), faellig: a.faellig })),
+  }));
 
   let aufgaben: Aufgabe[] = [];
   if (url.searchParams.get("aufgaben") !== "0") {
-    type Roh = Omit<Aufgabe, "zustaendig_name"> & { profiles: { name: string | null; email: string | null } | null };
-    const roh = await lies<Roh[]>(
-      `aufgaben?select=id,titel,beschreibung,faellig,status,updated_at,profiles!aufgaben_zustaendig_fkey(name,email)` +
-        `&status=neq.erledigt&faellig=not.is.null&order=faellig`,
-    );
-    aufgaben = roh.map(({ profiles, ...a }) => ({
-      ...a,
-      zustaendig_name: profiles ? (profiles.name || profiles.email) : null,
-    }));
+    aufgaben = aufgabenRoh
+      .filter((a) => a.status !== "erledigt" && a.faellig)
+      .map((a) => {
+        const t = a.termin_id ? terminById.get(a.termin_id) : undefined;
+        const pid = a.projekt_id ?? t?.projekt_id ?? null; // Unterpunkte erben das Projekt des Termins
+        return {
+          id: a.id,
+          titel: a.titel,
+          beschreibung: a.beschreibung,
+          faellig: a.faellig as string,
+          status: a.status,
+          updated_at: a.updated_at,
+          zustaendig_name: werVon(a),
+          termin_titel: t?.titel ?? null,
+          projekt_name: pid ? projektName.get(pid) ?? null : null,
+        };
+      });
   }
 
   const ics = baueKalender({

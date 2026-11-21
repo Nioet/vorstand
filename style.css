@@ -346,3 +346,97 @@ dialog details summary { cursor: pointer; color: var(--tanne); font-weight: 600;
   font-weight: 600;
 }
 .meldung.fehler-meldung { background: var(--rot); }
+
+/* ---------- Unterpunkte (Checkliste) ---------- */
+.unterpunkte-bereich {
+  margin-top: 1.2rem;
+  padding: .9rem;
+  background: var(--sand);
+  border-radius: 12px;
+}
+.unterpunkte-bereich h3 { font-size: 1.05rem; margin: 0 0 .6rem; }
+.unterpunkte-bereich .zeile { margin-top: .5rem; }
+.unterpunkte-bereich .zeile input { min-width: 0; }
+.checkliste { list-style: none; margin: 0; padding: 0; }
+.punkt {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  background: var(--weiss);
+  border-radius: 10px;
+  padding: .45rem .6rem;
+  margin-bottom: .45rem;
+}
+.punkt input[type=checkbox] {
+  width: 1.8rem; height: 1.8rem; min-height: 0; margin: 0;
+  flex: 0 0 auto; accent-color: var(--klee);
+}
+.punkt-text {
+  flex: 1; min-width: 0;
+  text-align: left; font: inherit; color: inherit;
+  background: none; border: none; padding: .3rem 0; cursor: pointer;
+}
+.punkt-titel { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.punkt-meta { display: block; font-size: .88rem; color: var(--grau); }
+.punkt.erledigt .punkt-titel { text-decoration: line-through; color: var(--grau); }
+.punkt-weg {
+  flex: 0 0 auto; width: 2.6rem; height: 2.6rem;
+  border: none; background: none; font-size: 1.2rem; color: var(--grau); cursor: pointer;
+}
+
+/* ---------- Kleine Etiketten (Projekt, Termin, Fortschritt) ---------- */
+.etiketten { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .35rem; }
+.etikett {
+  display: inline-block;
+  font-size: .82rem;
+  font-weight: 600;
+  padding: .1rem .55rem;
+  border-radius: 999px;
+  background: #e4efd2;
+  color: var(--tanne);
+  overflow-wrap: anywhere;
+}
+.etikett.termin-etikett { background: #e9e4f5; color: #3e2a7a; }
+.etikett.fertig { background: var(--tanne); color: var(--weiss); }
+
+.filter-auswahl { margin: -.4rem 0 1rem; }
+
+/* ---------- Projekte ---------- */
+.projekt-karte {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: var(--weiss);
+  border: none;
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  margin-bottom: .7rem;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+}
+.projekt-karte strong { display: block; font-size: 1.1rem; }
+.projekt-karte .beschreibung { display: block; color: var(--grau); font-size: .95rem; margin-top: .15rem; }
+.projekt-karte .meta { display: block; font-size: .92rem; margin-top: .4rem; }
+.projekt-karte.ist-abgeschlossen { opacity: .7; }
+.fortschritt {
+  display: block;
+  height: .6rem;
+  background: var(--linie);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: .6rem;
+}
+.fortschritt > span { display: block; height: 100%; background: var(--grashalm); }
+.projekt-kopf h2 { font-size: 1.4rem; }
+.projekt-detail-abschnitt { margin-top: 1.5rem; }
+.projekt-detail-abschnitt > h2 {
+  font-size: 1rem; text-transform: uppercase; letter-spacing: .05em; color: var(--tanne);
+}
+.einklappen > summary { cursor: pointer; font-weight: 600; color: var(--tanne); padding: .5rem 0; }
+
+/* Vier Reiter: etwas kleinere Schrift auf schmalen Handys */
+@media (max-width: 360px) { .leiste button { font-size: .8rem; } }
+.punkt-meta .ueberfaellig { color: var(--rot); font-weight: 700; }
+.punkt-meta .bald { color: var(--orange); font-weight: 700; }

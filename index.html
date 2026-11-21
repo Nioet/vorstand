@@ -69,7 +69,18 @@
           <button role="tab" data-filter="meine">Meine</button>
           <button role="tab" data-filter="niemand">Ohne Zuständige</button>
         </div>
+        <select id="aufgaben-projekt" class="filter-auswahl" aria-label="Nach Projekt filtern"></select>
         <div id="aufgaben-board" class="board"></div>
+      </section>
+
+      <!-- Projekte -->
+      <section id="seite-projekte" class="seite" hidden>
+        <div id="projekte-uebersicht">
+          <button class="knopf haupt breit" data-aktion="neues-projekt">＋ Neues Projekt</button>
+          <div id="projekte-liste"></div>
+          <label class="haken"><input type="checkbox" id="zeige-abgeschlossene"> Abgeschlossene Projekte zeigen</label>
+        </div>
+        <div id="projekt-detail" hidden></div>
       </section>
 
       <!-- Mehr -->
@@ -126,6 +137,7 @@
     <nav class="leiste" aria-label="Bereiche">
       <button data-seite="termine" class="aktiv"><span aria-hidden="true">📅</span>Termine</button>
       <button data-seite="aufgaben"><span aria-hidden="true">✅</span>Aufgaben</button>
+      <button data-seite="projekte"><span aria-hidden="true">📁</span>Projekte</button>
       <button data-seite="mehr"><span aria-hidden="true">☰</span>Mehr</button>
     </nav>
   </div>
@@ -159,6 +171,19 @@
       <label for="t-notiz">Notiz</label>
       <textarea id="t-notiz" rows="3" placeholder="z. B. Tagesordnung"></textarea>
 
+      <label for="t-projekt">Projekt (freiwillig)</label>
+      <select id="t-projekt"></select>
+
+      <div class="unterpunkte-bereich">
+        <h3>Unterpunkte zum Abhaken</h3>
+        <ul id="t-unterpunkte" class="checkliste"></ul>
+        <div class="zeile">
+          <input id="t-neuer-punkt" placeholder="z. B. Raum buchen" aria-label="Neuer Unterpunkt" enterkeyhint="done">
+          <button type="button" id="t-punkt-dazu" class="knopf">＋ Dazu</button>
+        </div>
+        <p id="t-punkte-hinweis" class="klein"></p>
+      </div>
+
       <div class="dialog-knoepfe">
         <button type="submit" value="speichern" class="knopf haupt">Speichern</button>
         <button type="submit" value="abbrechen" formnovalidate class="knopf">Abbrechen</button>
@@ -180,6 +205,13 @@
       <label for="a-faellig">Bis wann? (freiwillig)</label>
       <input id="a-faellig" type="date">
 
+      <label for="a-termin">Gehört zu Termin (freiwillig)</label>
+      <select id="a-termin"></select>
+
+      <label for="a-projekt">Projekt (freiwillig)</label>
+      <select id="a-projekt"></select>
+      <p id="a-projekt-hinweis" class="klein" hidden>Gehört zum Termin – das Projekt des Termins gilt automatisch.</p>
+
       <label for="a-status">Stand</label>
       <select id="a-status">
         <option value="offen">Offen</option>
@@ -195,6 +227,26 @@
         <button type="submit" value="abbrechen" formnovalidate class="knopf">Abbrechen</button>
       </div>
       <button type="button" id="a-loeschen" class="knopf warnung breit" hidden>Aufgabe löschen</button>
+    </form>
+  </dialog>
+
+  <!-- Projekt bearbeiten -->
+  <dialog id="dialog-projekt">
+    <form method="dialog" id="form-projekt">
+      <h2 id="projekt-ueberschrift">Neues Projekt</h2>
+      <label for="p-name">Name</label>
+      <input id="p-name" required placeholder="z. B. Kommunalwahl 2026">
+
+      <label for="p-beschreibung">Worum geht es? (freiwillig)</label>
+      <textarea id="p-beschreibung" rows="3"></textarea>
+
+      <label class="haken" id="p-abgeschlossen-zeile"><input id="p-abgeschlossen" type="checkbox"> Projekt ist abgeschlossen</label>
+
+      <div class="dialog-knoepfe">
+        <button type="submit" value="speichern" class="knopf haupt">Speichern</button>
+        <button type="submit" value="abbrechen" formnovalidate class="knopf">Abbrechen</button>
+      </div>
+      <button type="button" id="p-loeschen" class="knopf warnung breit" hidden>Projekt löschen</button>
     </form>
   </dialog>
 
