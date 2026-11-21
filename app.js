@@ -972,7 +972,10 @@ function projektZahlen(p) {
   const aufgaben = S.aufgaben.filter((a) => projektIdVonAufgabe(a) === p.id);
   const erledigt = aufgaben.filter((a) => a.status === "erledigt").length;
   const termine = S.termine.filter((t) => t.projekt_id === p.id);
-  const naechster = termine.filter((t) => (t.bis_datum || t.datum) >= h).sort(nachText("datum"))[0] || null;
+  const terminSchluessel = (t) => t.datum + (t.start_zeit || "00:00");
+  const naechster = termine
+    .filter((t) => (t.bis_datum || t.datum) >= h)
+    .sort((a, b) => terminSchluessel(a).localeCompare(terminSchluessel(b)))[0] || null;
   return { aufgaben, erledigt, offen: aufgaben.length - erledigt, termine, naechster };
 }
 
@@ -1005,7 +1008,20 @@ function zeichneProjekte() {
       </button>
       <button class="dupl-knopf" data-dupl-projekt="${x.id}" aria-label="Projekt „${esc(x.name)}“ duplizieren" title="Duplizieren">＋</button></div>`;
     };
-    const sortiert = (liste) => liste.sort(nachText("name"));
+    // Projekte mit kommenden Terminen zuerst, nach dem nächsten Termin; danach die übrigen nach Name
+    const sortiert = (liste) => {
+      const schluessel = new Map(liste.map((x) => {
+        const n = projektZahlen(x).naechster;
+        return [x.id, n ? n.datum + (n.start_zeit || "00:00") : null];
+      }));
+      return liste.sort((a, b) => {
+        const sa = schluessel.get(a.id), sb = schluessel.get(b.id);
+        if (sa && sb && sa !== sb) return sa.localeCompare(sb);
+        if (sa && !sb) return -1;
+        if (!sa && sb) return 1;
+        return nachText("name")(a, b);
+      });
+    };
     const laufend = sortiert(S.projekte.filter((x) => !x.abgeschlossen && !x.in_planung));
     const planung = sortiert(S.projekte.filter((x) => !x.abgeschlossen && x.in_planung));
     const fertig = S.zeigeAbgeschlossene ? sortiert(S.projekte.filter((x) => x.abgeschlossen)) : [];
