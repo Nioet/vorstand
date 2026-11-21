@@ -95,7 +95,7 @@ function utcStempel(iso: string | Date): string {
   return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 }
 
-function terminZuEvent(t: Termin, jetzt: string, domain: string): string[] {
+function terminZuEvent(t: Termin, jetzt: string, domain: string, appUrl?: string): string[] {
   const z: string[] = [
     "BEGIN:VEVENT",
     `UID:termin-${t.id}@${domain}`,
@@ -124,17 +124,21 @@ function terminZuEvent(t: Termin, jetzt: string, domain: string): string[] {
     }
   }
   if (t.ort) z.push(`LOCATION:${esc(t.ort)}`);
-  if (t.beschreibung) z.push(`DESCRIPTION:${esc(t.beschreibung)}`);
+  const link = appUrl ? `${appUrl}?termin=${t.id}` : null;
+  const text = [t.beschreibung, link ? `Bearbeiten in der App: ${link}` : null].filter(Boolean).join("\n\n");
+  if (text) z.push(`DESCRIPTION:${esc(text)}`);
+  if (link) z.push(`URL:${link}`);
   z.push("END:VEVENT");
   return z;
 }
 
-function aufgabeZuEvent(a: Aufgabe, jetzt: string, domain: string): string[] {
+function aufgabeZuEvent(a: Aufgabe, jetzt: string, domain: string, appUrl?: string): string[] {
   const wer = a.zustaendig_name ? ` (${a.zustaendig_name})` : "";
   const beschreibung = [
     a.status === "in_arbeit" ? "Status: in Arbeit" : "Status: offen",
     a.zustaendig_name ? `Zuständig: ${a.zustaendig_name}` : "Noch niemand zuständig",
     a.beschreibung ?? "",
+    appUrl ? `\nBearbeiten in der App: ${appUrl}?aufgabe=${a.id}` : "",
   ].filter(Boolean).join("\n");
   return [
     "BEGIN:VEVENT",
@@ -145,6 +149,7 @@ function aufgabeZuEvent(a: Aufgabe, jetzt: string, domain: string): string[] {
     `DTSTART;VALUE=DATE:${tag(a.faellig)}`,
     `DTEND;VALUE=DATE:${tag(plusTage(a.faellig, 1))}`,
     `DESCRIPTION:${esc(beschreibung)}`,
+    ...(appUrl ? [`URL:${appUrl}?aufgabe=${a.id}`] : []),
     "CATEGORIES:Aufgabe",
     "TRANSP:TRANSPARENT",
     "END:VEVENT",
@@ -157,6 +162,7 @@ export function baueKalender(opts: {
   aufgaben: Aufgabe[];
   domain?: string;
   jetzt?: Date;
+  appUrl?: string;
 }): string {
   const domain = opts.domain ?? "vorstand-app";
   const jetzt = utcStempel(opts.jetzt ?? new Date());
@@ -172,8 +178,8 @@ export function baueKalender(opts: {
     "X-PUBLISHED-TTL:PT1H",
     ...VTIMEZONE,
   ];
-  for (const t of opts.termine) zeilen.push(...terminZuEvent(t, jetzt, domain));
-  for (const a of opts.aufgaben) zeilen.push(...aufgabeZuEvent(a, jetzt, domain));
+  for (const t of opts.termine) zeilen.push(...terminZuEvent(t, jetzt, domain, opts.appUrl));
+  for (const a of opts.aufgaben) zeilen.push(...aufgabeZuEvent(a, jetzt, domain, opts.appUrl));
   zeilen.push("END:VCALENDAR");
   return zeilen.map(fold).join("\r\n") + "\r\n";
 }
@@ -238,6 +244,8 @@ async function antworte(req: Request): Promise<Response> {
     termine,
     aufgaben,
     domain: new URL(Deno.env.get("SUPABASE_URL")!).hostname,
+    // Adresse der Web-App, damit jeder Eintrag einen "Bearbeiten"-Link bekommt
+    appUrl: Deno.env.get("APP_URL") ?? "https://nioet.github.io/vorstand/",
   });
 
   return new Response(ics, {

@@ -240,6 +240,25 @@ async function starteApp() {
     $("#mein-name").focus();
     meldung("Willkommen! Trag bitte zuerst deinen Namen ein.");
   }
+  oeffneDirektlink();
+}
+
+// Link aus dem Handy-Kalender (…/?termin=ID oder …/?aufgabe=ID) öffnet den Eintrag
+function oeffneDirektlink() {
+  const q = new URLSearchParams(location.search);
+  const tId = q.get("termin");
+  const aId = q.get("aufgabe");
+  if (!tId && !aId) return;
+  history.replaceState(null, "", location.pathname);
+  if (tId) {
+    const t = S.termine.find((x) => x.id === tId);
+    wechsleSeite("termine");
+    if (t) oeffneTermin(t); else meldung("Diesen Termin gibt es nicht mehr.", true);
+  } else {
+    const a = S.aufgaben.find((x) => x.id === aId);
+    wechsleSeite("aufgaben");
+    if (a) oeffneAufgabe(a); else meldung("Diese Aufgabe gibt es nicht mehr.", true);
+  }
 }
 
 // Live: Änderungen der anderen erscheinen sofort
