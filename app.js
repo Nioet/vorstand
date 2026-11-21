@@ -586,6 +586,18 @@ function projektOptionen(select, gewaehlt) {
   select.value = gewaehlt || "";
 }
 
+// Ohne eigenen Titel heißt ein Projekt-Termin wie das Projekt
+function titelVorgabeAktualisieren() {
+  const p = projektVon($("#t-projekt").value);
+  const feld = $("#t-titel");
+  feld.required = !p;
+  feld.placeholder = p ? p.name : "z. B. Vorstandssitzung";
+  const hinweis = $("#t-titel-hinweis");
+  hinweis.hidden = !p;
+  hinweis.textContent = p ? `Leer lassen, dann heißt der Termin „${p.name}“.` : "";
+}
+$("#t-projekt").addEventListener("change", titelVorgabeAktualisieren);
+
 function ganztagsUmschalten() {
   const ganz = $("#t-ganztags").checked;
   $(".zeiten").hidden = ganz;
@@ -616,6 +628,7 @@ function oeffneTermin(t = null, vorgabe = {}) {
   $("#t-ort").value = t?.ort || "";
   $("#t-notiz").value = t?.beschreibung || "";
   projektOptionen($("#t-projekt"), t ? t.projekt_id : vorgabe.projekt_id);
+  titelVorgabeAktualisieren();
   $("#t-neuer-punkt").value = "";
   $("#t-loeschen").hidden = !t;
   ganztagsUmschalten();
@@ -723,8 +736,10 @@ dT.addEventListener("close", async () => {
   if (bis && bis < datum) { meldung("Der letzte Tag liegt vor dem ersten Tag.", true); return wiederOeffnen(dT); }
   if (bis === datum) bis = null;
 
+  const titel = $("#t-titel").value.trim() || projektVon($("#t-projekt").value)?.name || "";
+  if (!titel) { meldung("Bitte gib dem Termin einen Titel.", true); return wiederOeffnen(dT); }
   const daten = {
-    titel: $("#t-titel").value.trim(),
+    titel,
     datum,
     bis_datum: bis,
     start_zeit: start,
@@ -873,13 +888,14 @@ async function alleNachDatum() {
 const dA = $("#dialog-aufgabe");
 let bearbeiteteAufgabe = null;
 
-function personenAuswahl(gewaehlt) {
-  const aktive = S.profile.filter((p) => p.aktiv);
-  $("#a-wer").innerHTML =
+function personenOptionen(select, gewaehlt) {
+  const aktive = S.profile.filter((p) => p.aktiv || p.id === gewaehlt);
+  select.innerHTML =
     `<option value="">— noch niemand —</option>` +
     aktive.map((p) => `<option value="${p.id}">${esc(p.name || p.email)}${p.id === S.userId ? " (ich)" : ""}</option>`).join("");
-  $("#a-wer").value = gewaehlt || "";
+  select.value = gewaehlt || "";
 }
+const personenAuswahl = (gewaehlt) => personenOptionen($("#a-wer"), gewaehlt);
 
 function terminAuswahl(gewaehlt) {
   // Kommende Termine und die der letzten 30 Tage, dazu der aktuell gewählte
@@ -974,7 +990,9 @@ function zeichneProjekte() {
     $("#projekte-liste").innerHTML = liste.length
       ? liste.map((x) => {
           const z = projektZahlen(x);
+          const wer = nameVon(x.zustaendig);
           const meta = [
+            wer ? `👤 ${esc(wer)}${x.zustaendig === S.userId ? " (ich)" : ""}` : "",
             z.aufgaben.length ? `✅ ${z.offen} offen` : "noch keine Aufgaben",
             z.naechster ? `📅 nächster Termin: ${esc(langesDatum(z.naechster.datum))}` : "",
             x.abgeschlossen ? "✔ abgeschlossen" : "",
@@ -1009,6 +1027,7 @@ function zeichneProjekte() {
       <button class="dupl-knopf" data-dupl-projekt="${p.id}" aria-label="Projekt duplizieren" title="Duplizieren">＋</button>
       <h2 style="padding-right:3.2rem">📁 ${esc(p.name)}${p.abgeschlossen ? ' <span class="marke">abgeschlossen</span>' : ""}</h2>
       ${p.beschreibung ? `<p>${esc(p.beschreibung)}</p>` : ""}
+      <p>👤 ${p.zustaendig ? `Zuständig: <strong>${esc(nameVon(p.zustaendig) || "?")}</strong>${p.zustaendig === S.userId ? " (ich)" : ""}` : "Noch niemand zuständig"}</p>
       ${z.aufgaben.length ? `${balken(z.erledigt / z.aufgaben.length)}<p class="klein">${z.erledigt} von ${z.aufgaben.length} Aufgaben erledigt</p>` : ""}
       <button class="knopf breit" data-aktion="projekt-bearbeiten">Projekt bearbeiten</button>
     </div>
@@ -1049,6 +1068,7 @@ function oeffneProjekt(p = null) {
   $("#p-name").value = p?.name || "";
   $("#p-beschreibung").value = p?.beschreibung || "";
   $("#p-abgeschlossen").checked = !!p?.abgeschlossen;
+  personenOptionen($("#p-zustaendig"), p?.zustaendig);
   $("#p-abgeschlossen-zeile").hidden = !p;
   $("#p-loeschen").hidden = !p;
   dP.returnValue = "";
@@ -1062,6 +1082,7 @@ dP.addEventListener("close", async () => {
     name: $("#p-name").value.trim(),
     beschreibung: leer($("#p-beschreibung").value),
     abgeschlossen: $("#p-abgeschlossen").checked,
+    zustaendig: $("#p-zustaendig").value || null,
   };
   let fehler, neueId;
   if (bearbeitetesProjekt) {

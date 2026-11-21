@@ -152,6 +152,7 @@
       <h2 id="termin-ueberschrift">Neuer Termin</h2>
       <label for="t-titel">Was?</label>
       <input id="t-titel" required placeholder="z. B. Vorstandssitzung">
+      <p id="t-titel-hinweis" class="klein" hidden></p>
 
       <label for="t-datum">Datum</label>
       <input id="t-datum" type="date" required>
@@ -247,6 +248,9 @@
 
       <label for="p-beschreibung">Worum geht es? (freiwillig)</label>
       <textarea id="p-beschreibung" rows="3"></textarea>
+
+      <label for="p-zustaendig">Wer ist für das Projekt zuständig?</label>
+      <select id="p-zustaendig"></select>
 
       <label class="haken" id="p-abgeschlossen-zeile"><input id="p-abgeschlossen" type="checkbox"> Projekt ist abgeschlossen</label>
 

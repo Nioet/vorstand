@@ -5,7 +5,7 @@ Eine schlichte Web-App für den Vorstand:
 - **Termine** als übersichtliche Liste, mit „Heute“/„Morgen“-Hinweisen
 - **Aufgaben** in drei Spalten (Offen · In Arbeit · Erledigt), mit Zuständigen und Fristen, „Mach ich“-Knopf
 - **Unterpunkte zum Abhaken** an jedem Termin – jeweils mit Zuständigen und Frist
-- **Projekte**, die Termine und Aufgaben bündeln, mit Fortschrittsbalken
+- **Projekte**, die Termine und Aufgaben bündeln, mit zuständiger Person und Fortschrittsbalken; Termine im Projekt heißen ohne eigenen Titel wie das Projekt
 - **Reihenfolge**: Aufgaben und Unterpunkte sortieren sich automatisch nach Fälligkeit, lassen sich mit ↑/↓ von Hand umsortieren und per Knopf wieder nach Datum ordnen
 - **Duplizieren** per ＋ auf jeder Karte: Termine (fragt nach neuem Datum), Aufgaben und ganze Projekte – Unterpunkte sind danach wieder offen
 - **Kalender-Abo**: alle Termine und Aufgaben-Fristen erscheinen automatisch im eigenen Handy-Kalender (iPhone, Android/Google, Outlook)
@@ -41,7 +41,7 @@ Bereits erledigt: Supabase-Projekt **„Vorstand“** (Organisation „Grüne BK
 
 ### 2. Datenbank einrichten
 1. Im Dashboard links **SQL Editor** → **New query**.
-2. Den kompletten Inhalt von `supabase/migrations/20261121000000_vorstand.sql` einfügen → **Run**, danach genauso `20261121020000_projekte_unterpunkte.sql`, `20261121030000_duplizieren.sql` und `20261121040000_reihenfolge.sql`.
+2. Den kompletten Inhalt von `supabase/migrations/20261121000000_vorstand.sql` einfügen → **Run**, danach genauso `20261121020000_projekte_unterpunkte.sql`, `20261121030000_duplizieren.sql` `20261121040000_reihenfolge.sql` und `20261121050000_projekt_zustaendig.sql`.
    Das Skript kann gefahrlos mehrfach ausgeführt werden.
 
 ### 3. Anmeldung einstellen
