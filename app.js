@@ -97,6 +97,8 @@ const S = {
   projektFilter: "",
   projektOffen: null,
   zeigeAbgeschlossene: false,
+  sortieren: false,       // ↑/↓ auf dem Aufgabenboard und im Projekt
+  listen: {},             // zuletzt angezeigte Reihenfolgen (für ↑/↓)
   seite: localStorage.getItem("vorstand-seite") || "termine",
   kanal: null,
 };
@@ -109,8 +111,11 @@ const terminVon = (id) => (id ? S.termine.find((t) => t.id === id) || null : nul
 const projektVon = (id) => (id ? S.projekte.find((p) => p.id === id) || null : null);
 // Unterpunkte erben das Projekt ihres Termins
 const projektIdVonAufgabe = (a) => a.projekt_id || terminVon(a.termin_id)?.projekt_id || null;
+// Reihenfolge: eigene Position (automatisch nach Datum, von Hand änderbar)
+const nachPosition = (x, y) =>
+  (x.position ?? Infinity) - (y.position ?? Infinity) || String(x.created_at).localeCompare(String(y.created_at));
 const unterpunkteVon = (terminId) =>
-  S.aufgaben.filter((a) => a.termin_id === terminId).sort(nachText("created_at"));
+  S.aufgaben.filter((a) => a.termin_id === terminId).sort(nachPosition);
 
 // ------------------------------------------------------------------
 //  Anmeldung per E-Mail-Code (kein Passwort)
@@ -218,7 +223,7 @@ async function ladeProfile() {
 async function ladeInhalte() {
   const [t, a, p] = await Promise.all([
     sb.from("termine").select("*").order("datum").order("start_zeit", { nullsFirst: true }),
-    sb.from("aufgaben").select("*").order("created_at"),
+    sb.from("aufgaben").select("*").order("position", { nullsFirst: false }).order("created_at"),
     sb.from("projekte").select("*").order("name"),
   ]);
   if (t.error) throw t.error;
@@ -383,7 +388,7 @@ $(".inhalt").addEventListener("click", (e) => {
   const karte = tun?.closest("[data-id]");
   if (tun && karte) {
     const a = S.aufgaben.find((x) => x.id === karte.dataset.id);
-    if (a) aufgabenAktion(a, tun.dataset.tun);
+    if (a) aufgabenAktion(a, tun.dataset.tun, karte.dataset.liste);
     return;
   }
 
@@ -411,6 +416,12 @@ $(".inhalt").addEventListener("click", (e) => {
     case "projekt-bearbeiten": return p && oeffneProjekt(p);
     case "projekt-termin": return p && oeffneTermin(null, { projekt_id: p.id });
     case "projekt-aufgabe": return p && oeffneAufgabe(null, { projekt_id: p.id });
+    case "sortieren-umschalten":
+      S.sortieren = !S.sortieren;
+      zeichneAufgaben(); zeichneProjekte();
+      if (S.sortieren) meldung("Mit ↑ und ↓ die Reihenfolge ändern.");
+      return;
+    case "nach-datum": return alleNachDatum();
   }
 });
 
@@ -471,11 +482,17 @@ function fristText(a) {
   return `📅 bis ${esc(langesDatum(a.faellig))}`;
 }
 
-function aufgabeHtml(a, { mitProjekt = true } = {}) {
+function aufgabeHtml(a, { mitProjekt = true, liste = null } = {}) {
   const wer = nameVon(a.zustaendig);
   const istMeine = a.zustaendig === S.userId;
+  const sortierbar = S.sortieren && liste && a.status !== "erledigt";
   let knoepfe = "";
-  if (a.status === "offen") {
+  if (sortierbar) {
+    const ids = S.listen[liste] || [];
+    const i = ids.indexOf(a.id);
+    knoepfe = `<button class="knopf klein pfeil" data-tun="hoch" aria-label="Nach oben" ${i <= 0 ? "disabled" : ""}>↑ Hoch</button>
+               <button class="knopf klein pfeil" data-tun="runter" aria-label="Nach unten" ${i === ids.length - 1 ? "disabled" : ""}>↓ Runter</button>`;
+  } else if (a.status === "offen") {
     knoepfe = !a.zustaendig
       ? `<button class="knopf klein" data-tun="nehmen">🙋 Mach ich</button>`
       : `<button class="knopf klein" data-tun="anfangen">▶ Anfangen</button>`;
@@ -492,8 +509,8 @@ function aufgabeHtml(a, { mitProjekt = true } = {}) {
     t ? `<span class="etikett termin-etikett">📅 ${esc(t.titel)} · ${esc(kurzesDatum(t.datum))}</span>` : "",
     mitProjekt ? projektEtikett(projektIdVonAufgabe(a)) : "",
   ].join("");
-  return `<article class="aufgabe${a.status === "erledigt" ? " ist-erledigt" : ""}" data-id="${a.id}">
-    <button class="dupl-knopf" data-tun="duplizieren" aria-label="„${esc(a.titel)}“ duplizieren" title="Duplizieren">＋</button>
+  return `<article class="aufgabe${a.status === "erledigt" ? " ist-erledigt" : ""}" data-id="${a.id}"${liste ? ` data-liste="${liste}"` : ""}>
+    ${sortierbar ? "" : `<button class="dupl-knopf" data-tun="duplizieren" aria-label="„${esc(a.titel)}“ duplizieren" title="Duplizieren">＋</button>`}
     <button class="titel-knopf" data-tun="bearbeiten">${esc(a.titel)}</button>
     <div class="meta">👤 ${esc(wer ? (istMeine ? `${wer} (ich)` : wer) : "noch niemand")}${frist ? " · " + frist : ""}</div>
     ${etiketten ? `<div class="etiketten">${etiketten}</div>` : ""}
@@ -559,6 +576,7 @@ function zeichneTermine() {
 const dT = $("#dialog-termin");
 let bearbeiteterTermin = null;
 let entwurfPunkte = []; // Unterpunkte eines noch nicht gespeicherten Termins
+let punkteSortieren = false;
 
 function projektOptionen(select, gewaehlt) {
   const liste = S.projekte.filter((p) => !p.abgeschlossen || p.id === gewaehlt).sort(nachText("name"));
@@ -586,6 +604,7 @@ $("#t-start").addEventListener("change", () => {
 function oeffneTermin(t = null, vorgabe = {}) {
   bearbeiteterTermin = t;
   entwurfPunkte = [];
+  punkteSortieren = false;
   $("#termin-ueberschrift").textContent = t ? "Termin bearbeiten" : "Neuer Termin";
   $("#t-titel").value = t?.titel || "";
   $("#t-datum").value = t?.datum || heute();
@@ -609,6 +628,7 @@ function oeffneTermin(t = null, vorgabe = {}) {
 function zeichneUnterpunkte() {
   const liste = $("#t-unterpunkte");
   if (!bearbeiteterTermin) {
+    $("#t-sortier-leiste").hidden = true;
     liste.innerHTML = entwurfPunkte
       .map((titel, i) => `<li class="punkt"><span class="punkt-text"><span class="punkt-titel">${esc(titel)}</span></span>
         <button type="button" class="punkt-weg" data-entwurf-weg="${i}" aria-label="Entfernen">✕</button></li>`)
@@ -620,16 +640,24 @@ function zeichneUnterpunkte() {
   }
   const punkte = unterpunkteVon(bearbeiteterTermin.id);
   liste.innerHTML = punkte
-    .map((a) => {
+    .map((a, i) => {
       const wer = nameVon(a.zustaendig);
       const meta = [wer ? `👤 ${esc(wer)}` : "👤 noch niemand", a.faellig ? fristText(a) : ""].filter(Boolean).join(" · ");
+      const pfeile = punkteSortieren
+        ? `<button type="button" class="punkt-pfeil" data-punkt-hoch="${a.id}" aria-label="Nach oben" ${i === 0 ? "disabled" : ""}>↑</button>
+           <button type="button" class="punkt-pfeil" data-punkt-runter="${a.id}" aria-label="Nach unten" ${i === punkte.length - 1 ? "disabled" : ""}>↓</button>`
+        : "";
       return `<li class="punkt${a.status === "erledigt" ? " erledigt" : ""}">
         <input type="checkbox" data-punkt-haken="${a.id}" ${a.status === "erledigt" ? "checked" : ""} aria-label="${esc(a.titel)} erledigt">
         <button type="button" class="punkt-text" data-punkt-bearbeiten="${a.id}">
           <span class="punkt-titel">${esc(a.titel)}</span><span class="punkt-meta">${meta}</span>
-        </button></li>`;
+        </button>${pfeile}</li>`;
     })
     .join("");
+  $("#t-sortier-leiste").hidden = punkte.length < 2;
+  $("#t-sortieren").textContent = punkteSortieren ? "✓ Fertig sortiert" : "↕ Reihenfolge ändern";
+  $("#t-sortieren").classList.toggle("aktiv", punkteSortieren);
+  $("#t-nach-datum").hidden = !punkteSortieren;
   $("#t-punkte-hinweis").textContent = punkte.length
     ? "Tippe auf einen Unterpunkt, um festzulegen, wer ihn bis wann erledigt."
     : "Noch keine Unterpunkte.";
@@ -661,6 +689,23 @@ $("#t-unterpunkte").addEventListener("click", (e) => {
   if (weg) { entwurfPunkte.splice(Number(weg.dataset.entwurfWeg), 1); return zeichneUnterpunkte(); }
   const bearb = e.target.closest("[data-punkt-bearbeiten]");
   if (bearb) return oeffneAufgabe(S.aufgaben.find((a) => a.id === bearb.dataset.punktBearbeiten));
+  const pfeil = e.target.closest("[data-punkt-hoch], [data-punkt-runter]");
+  if (pfeil && bearbeiteterTermin) {
+    const richtung = pfeil.dataset.punktHoch ? "hoch" : "runter";
+    const a = S.aufgaben.find((x) => x.id === (pfeil.dataset.punktHoch || pfeil.dataset.punktRunter));
+    if (a) verschiebe(a, richtung, unterpunkteVon(bearbeiteterTermin.id).map((x) => x.id));
+  }
+});
+$("#t-sortieren").addEventListener("click", () => {
+  punkteSortieren = !punkteSortieren;
+  zeichneUnterpunkte();
+});
+$("#t-nach-datum").addEventListener("click", async () => {
+  if (!bearbeiteterTermin) return;
+  const { error } = await sb.rpc("aufgaben_nach_datum", { nur_termin: bearbeiteterTermin.id });
+  if (error) return meldung("Das hat nicht geklappt.", true);
+  meldung("Unterpunkte nach Datum sortiert.");
+  await neuLadenUndZeichnen();
 });
 $("#t-unterpunkte").addEventListener("change", async (e) => {
   const haken = e.target.closest("[data-punkt-haken]");
@@ -755,13 +800,24 @@ function zeichneAufgaben() {
     let teil = liste.filter((a) => a.status === sp.status);
     teil = sp.status === "erledigt"
       ? teil.sort((x, y) => ((x.erledigt_am || "") < (y.erledigt_am || "") ? 1 : -1))
-      : teil.sort(nachFrist);
-    const karten = teil.map((a) => aufgabeHtml(a, { mitProjekt: !S.projektFilter })).join("") || `<p class="leer">Nichts hier.</p>`;
+      : teil.sort(nachPosition);
+    const key = "board-" + sp.status;
+    S.listen[key] = teil.map((a) => a.id);
+    const karten = teil.map((a) => aufgabeHtml(a, { mitProjekt: !S.projektFilter, liste: key })).join("") || `<p class="leer">Nichts hier.</p>`;
     html += `<section class="spalte"><h2>${sp.titel} <span class="anzahl">${teil.length}</span></h2>
       ${sp.status === "erledigt" && teil.length ? `<details><summary>Anzeigen</summary>${karten}</details>` : karten}
     </section>`;
   }
   $("#aufgaben-board").innerHTML = html;
+  sortierKnoepfeAktualisieren();
+}
+
+function sortierKnoepfeAktualisieren() {
+  $$('[data-aktion="sortieren-umschalten"]').forEach((b) => {
+    b.textContent = S.sortieren ? "✓ Fertig sortiert" : "↕ Reihenfolge ändern";
+    b.classList.toggle("aktiv", S.sortieren);
+  });
+  $$('[data-aktion="nach-datum"]').forEach((b) => (b.hidden = !S.sortieren));
 }
 
 async function aendereAufgabe(a, aenderung, text) {
@@ -777,8 +833,10 @@ async function aendereAufgabe(a, aenderung, text) {
   if (text) meldung(text);
 }
 
-function aufgabenAktion(a, tun) {
+function aufgabenAktion(a, tun, liste) {
   switch (tun) {
+    case "hoch":
+    case "runter": return verschiebe(a, tun, S.listen[liste] || []);
     case "bearbeiten": return oeffneAufgabe(a);
     case "nehmen": return aendereAufgabe(a, { zustaendig: S.userId, status: "in_arbeit" }, "Danke, die Aufgabe gehört jetzt dir.");
     case "anfangen": return aendereAufgabe(a, { status: "in_arbeit" });
@@ -787,6 +845,28 @@ function aufgabenAktion(a, tun) {
     case "oeffnen": return aendereAufgabe(a, { status: "offen" });
     case "duplizieren": return dupliziereAufgabe(a);
   }
+}
+
+// --- Reihenfolge von Hand ---
+async function verschiebe(a, richtung, ids) {
+  const i = ids.indexOf(a.id);
+  const schritt = richtung === "hoch" ? -1 : 1;
+  const nachbar = S.aufgaben.find((x) => x.id === ids[i + schritt]);
+  if (i < 0 || !nachbar) return;
+  const dahinter = S.aufgaben.find((x) => x.id === ids[i + 2 * schritt]);
+  const neu = dahinter ? (nachbar.position + dahinter.position) / 2 : nachbar.position + schritt * 1000;
+  await aendereAufgabe(a, { position: neu });
+  // Fokus auf demselben Knopf lassen, damit man mehrmals tippen kann
+  const knopf = $(`[data-id="${a.id}"] [data-tun="${richtung}"]`) || $(`[data-punkt-${richtung}="${a.id}"]`);
+  if (knopf && !knopf.disabled) knopf.focus();
+}
+
+async function alleNachDatum() {
+  if (!confirm("Eigene Reihenfolge verwerfen und alle Aufgaben wieder nach Datum sortieren?")) return;
+  const { error } = await sb.rpc("aufgaben_nach_datum", {});
+  if (error) return meldung("Das hat nicht geklappt.", true);
+  meldung("Nach Datum sortiert.");
+  await neuLadenUndZeichnen();
 }
 
 // --- Aufgaben-Dialog ---
@@ -919,7 +999,8 @@ function zeichneProjekte() {
   const h = heute();
   const kommende = z.termine.filter((t) => (t.bis_datum || t.datum) >= h).sort(nachText("datum"));
   const vergangene = z.termine.filter((t) => (t.bis_datum || t.datum) < h).sort(nachText("datum")).reverse();
-  const offen = z.aufgaben.filter((a) => a.status !== "erledigt").sort(nachFrist);
+  const offen = z.aufgaben.filter((a) => a.status !== "erledigt").sort(nachPosition);
+  S.listen["projekt-offen"] = offen.map((a) => a.id);
   const fertig = z.aufgaben.filter((a) => a.status === "erledigt");
 
   detail.innerHTML = `
@@ -945,12 +1026,17 @@ function zeichneProjekte() {
     <section class="projekt-detail-abschnitt">
       <h2>Aufgaben</h2>
       <button class="knopf haupt breit" data-aktion="projekt-aufgabe">＋ Aufgabe für dieses Projekt</button>
+      ${offen.length > 1 ? `<div class="sortier-leiste" style="margin-top:.6rem">
+        <button class="knopf klein" data-aktion="sortieren-umschalten">↕ Reihenfolge ändern</button>
+        <button class="knopf klein" data-aktion="nach-datum" hidden>📅 Nach Datum sortieren</button>
+      </div>` : ""}
       <div style="margin-top:.8rem">
-        ${offen.map((a) => aufgabeHtml(a, { mitProjekt: false })).join("") || `<p class="leer">Keine offenen Aufgaben.</p>`}
+        ${offen.map((a) => aufgabeHtml(a, { mitProjekt: false, liste: "projekt-offen" })).join("") || `<p class="leer">Keine offenen Aufgaben.</p>`}
       </div>
       ${fertig.length ? `<details class="einklappen"><summary>Erledigt (${fertig.length})</summary>
         ${fertig.map((a) => aufgabeHtml(a, { mitProjekt: false })).join("")}</details>` : ""}
     </section>`;
+  sortierKnoepfeAktualisieren();
 }
 
 // --- Projekt-Dialog ---
