@@ -494,7 +494,7 @@ function externKarte(t) {
   const mehrtaegig = t.bis_datum && t.bis_datum !== t.datum;
   const punkte = unterpunkteVon(t.id);
   const offen = punkte.filter((a) => a.status !== "erledigt").length;
-  return `<button class="termin-extern" data-termin="${t.id}">
+  return `<button class="termin-extern${t.zustaendig ? " uebernommen" : ""}" data-termin="${t.id}">
     <span class="te-datum" ${mehrtaegig ? `title="bis ${esc(kurzesDatum(t.bis_datum))}"` : ""}><span class="wt">${esc(wochentag(t.datum))}</span><span class="tg">${alsDatum(t.datum).getDate()}${mehrtaegig ? "+" : ""}</span></span>
     <span class="te-text">
       <span class="te-titel">${esc(t.titel)}</span>
@@ -650,10 +650,13 @@ let punkteSortieren = false;
 
 function projektOptionen(select, gewaehlt) {
   const liste = S.projekte.filter((p) => !p.abgeschlossen || p.id === gewaehlt).sort(nachText("name"));
+  const mitNeu = select.id === "t-projekt" || select.id === "a-projekt";
   select.innerHTML =
     `<option value="">— kein Projekt —</option>` +
+    (mitNeu ? `<option value="__neu">＋ Neues Projekt erstellen …</option>` : "") +
     liste.map((p) => `<option value="${p.id}">${esc(p.name)}${p.abgeschlossen ? " (abgeschlossen)" : p.in_planung ? " (in Planung)" : ""}</option>`).join("");
   select.value = gewaehlt || "";
+  select.dataset.vorher = select.value;
 }
 
 // Ohne eigenen Titel heißt ein Projekt-Termin wie das Projekt
@@ -889,7 +892,7 @@ $("#t-unterpunkte").addEventListener("change", async (e) => {
 });
 
 dT.addEventListener("close", async () => {
-  if (dT.returnValue !== "speichern") return;
+  if (dT.returnValue !== "speichern") { if (!bearbeiteterTermin) nachAnlegen.termin = null; return; }
   const extern = $("#t-extern").checked;
   const zustaendig = extern ? $("#t-wer").value || null : null;
   if (bearbeiteterTermin?.quelle) {
@@ -929,13 +932,14 @@ dT.addEventListener("close", async () => {
   const offen = $("#t-neuer-punkt").value.trim();
   if (offen && !bearbeiteterTermin) entwurfPunkte.push(offen);
 
-  let fehler;
+  let fehler, neueTerminId;
   if (bearbeiteterTermin) {
     ({ error: fehler } = await sb.from("termine").update(daten).eq("id", bearbeiteterTermin.id));
     if (!fehler && offen) await sb.from("aufgaben").insert({ titel: offen, termin_id: bearbeiteterTermin.id });
   } else {
     const { data, error } = await sb.from("termine").insert(daten).select("id").single();
     fehler = error;
+    neueTerminId = data?.id;
     if (!error && entwurfPunkte.length) {
       const { error: e2 } = await sb.from("aufgaben").insert(entwurfPunkte.map((titel) => ({ titel, termin_id: data.id })));
       if (e2) meldung("Termin gespeichert, aber die Unterpunkte nicht.", true);
@@ -945,6 +949,7 @@ dT.addEventListener("close", async () => {
   meldung(bearbeiteterTermin ? "Termin gespeichert." : "Termin eingetragen.");
   entwurfPunkte = [];
   await neuLadenUndZeichnen();
+  if (neueTerminId && nachAnlegen.termin) { const f = nachAnlegen.termin; nachAnlegen.termin = null; f(neueTerminId); }
 });
 
 $("#t-loeschen").addEventListener("click", async () => {
@@ -1099,9 +1104,33 @@ function terminAuswahl(gewaehlt) {
   const liste = S.termine.filter((t) => (t.bis_datum || t.datum) >= grenze || t.id === gewaehlt);
   $("#a-termin").innerHTML =
     `<option value="">— keinem Termin —</option>` +
+    `<option value="__neu">＋ Neuen Termin erstellen …</option>` +
     liste.map((t) => `<option value="${t.id}">${esc(kurzesDatum(t.datum))} – ${esc(t.titel)}${t.extern ? " (extern)" : ""}</option>`).join("");
   $("#a-termin").value = gewaehlt || "";
+  $("#a-termin").dataset.vorher = $("#a-termin").value;
 }
+
+// „Neues Projekt / Neuen Termin erstellen“ direkt aus der Auswahlliste.
+// Nach dem Speichern wird das Neue in der Liste ausgewählt.
+const nachAnlegen = { projekt: null, termin: null };
+const neuAusAuswahl = {
+  "t-projekt": () => ["projekt", (id) => { projektOptionen($("#t-projekt"), id); titelVorgabeAktualisieren(); }],
+  "a-projekt": () => ["projekt", (id) => projektOptionen($("#a-projekt"), id)],
+  "a-termin": () => ["termin", (id) => { terminAuswahl(id); projektAnzeigeAktualisieren(); },
+    { projekt_id: $("#a-projekt-bereich").hidden ? null : $("#a-projekt").value || null }],
+};
+document.addEventListener("change", (e) => {
+  const sel = e.target;
+  if (!(sel instanceof HTMLSelectElement) || !neuAusAuswahl[sel.id]) return;
+  if (sel.value !== "__neu") { sel.dataset.vorher = sel.value; return; }
+  // Auswahl zurücksetzen, bis das Neue gespeichert ist; andere Reaktionen auf die Änderung unterdrücken
+  sel.value = sel.dataset.vorher || "";
+  e.stopImmediatePropagation();
+  const [art, fertig, vorgabe = {}] = neuAusAuswahl[sel.id]();
+  nachAnlegen[art] = fertig;
+  if (art === "projekt") oeffneProjekt(null, vorgabe);
+  else oeffneTermin(null, vorgabe);
+}, true);
 
 // Unterpunkte haben kein eigenes Projekt: Es gilt das Projekt ihres Termins.
 let letzterTermin = null;
@@ -1355,7 +1384,7 @@ function oeffneProjekt(p = null, vorgabe = {}) {
 }
 
 dP.addEventListener("close", async () => {
-  if (dP.returnValue !== "speichern") return;
+  if (dP.returnValue !== "speichern") { if (!bearbeitetesProjekt) nachAnlegen.projekt = null; return; }
   const daten = {
     name: $("#p-name").value.trim(),
     beschreibung: leer($("#p-beschreibung").value),
@@ -1372,6 +1401,12 @@ dP.addEventListener("close", async () => {
   }
   if (fehler) { console.error(fehler); meldung("Speichern hat nicht geklappt. Bitte noch einmal versuchen.", true); return wiederOeffnen(dP); }
   meldung(bearbeitetesProjekt ? "Projekt gespeichert." : "Projekt angelegt.");
+  if (neueId && nachAnlegen.projekt) {
+    // Aus einer Auswahlliste angelegt: dort auswählen, nicht zur Projektseite springen
+    const f = nachAnlegen.projekt; nachAnlegen.projekt = null;
+    await neuLadenUndZeichnen();
+    return f(neueId);
+  }
   if (neueId) { S.projektOffen = neueId; wechsleSeite("projekte"); }
   await neuLadenUndZeichnen();
 });

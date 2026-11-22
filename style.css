@@ -672,6 +672,9 @@ input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }
   cursor: pointer;
 }
 .termin-extern:active { filter: brightness(.96); }
+/* Jemand von uns geht hin: etwas kräftiger */
+.termin-extern.uebernommen { background: #c9ddc1; }
+.termin-extern.uebernommen .te-wer { color: #234a33; font-weight: 600; }
 /* kleines Datumsquadrat wie bei den großen Karten */
 .te-datum {
   flex: 0 0 auto;
