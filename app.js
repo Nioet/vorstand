@@ -114,9 +114,27 @@ const S = {
   kanal: null,
 };
 
+// Angezeigt wird überall nur der Vorname. Haben zwei denselben Vornamen,
+// kommt der Anfangsbuchstabe des Nachnamens dazu ("Anna M.").
+function anzeigeNamen(profile) {
+  const teile = (p) => (p.name || "").trim().split(/\s+/).filter(Boolean);
+  const vor = (p) => teile(p)[0] || (p.email || "").split("@")[0] || "?";
+  const anzahl = {};
+  for (const p of profile) anzahl[vor(p).toLowerCase()] = (anzahl[vor(p).toLowerCase()] || 0) + 1;
+  const namen = {};
+  for (const p of profile) {
+    const t = teile(p);
+    namen[p.id] = anzahl[vor(p).toLowerCase()] > 1 && t.length > 1
+      ? `${t[0]} ${t[t.length - 1][0].toUpperCase()}.`
+      : vor(p);
+  }
+  return namen;
+}
+let namenCache = { quelle: null, namen: {} };
 const nameVon = (id) => {
-  const p = S.profile.find((x) => x.id === id);
-  return p ? p.name || p.email : null;
+  if (!id || !S.profile.some((x) => x.id === id)) return null;
+  if (namenCache.quelle !== S.profile) namenCache = { quelle: S.profile, namen: anzeigeNamen(S.profile) };
+  return namenCache.namen[id];
 };
 const terminVon = (id) => (id ? S.termine.find((t) => t.id === id) || null : null);
 const projektVon = (id) => (id ? S.projekte.find((p) => p.id === id) || null : null);
@@ -911,7 +929,7 @@ function personenOptionen(select, gewaehlt) {
   const aktive = S.profile.filter((p) => p.aktiv || p.id === gewaehlt);
   select.innerHTML =
     `<option value="">— noch niemand —</option>` +
-    aktive.map((p) => `<option value="${p.id}">${esc(p.name || p.email)}${p.id === S.userId ? " (ich)" : ""}</option>`).join("");
+    aktive.map((p) => `<option value="${p.id}">${esc(nameVon(p.id))}${p.id === S.userId ? " (ich)" : ""}</option>`).join("");
   select.value = gewaehlt || "";
 }
 const personenAuswahl = (gewaehlt) => personenOptionen($("#a-wer"), gewaehlt);
@@ -1359,7 +1377,7 @@ function zeichneMehr() {
   if (document.activeElement !== $("#mein-name")) $("#mein-name").value = S.ich?.name || "";
   $("#vorstand-liste").innerHTML = S.profile
     .filter((p) => p.aktiv)
-    .map((p) => `<li><strong>${esc(p.name || "(noch ohne Namen)")}</strong><br>
+    .map((p) => `<li><strong>${esc(p.name ? nameVon(p.id) : "(noch ohne Namen)")}</strong><br>
       ${p.email ? `<a href="mailto:${esc(p.email)}">${esc(p.email)}</a>` : ""}</li>`)
     .join("");
 }
@@ -1401,6 +1419,7 @@ $("#form-name").addEventListener("submit", async (e) => {
   if (error) return meldung("Speichern hat nicht geklappt.", true);
   S.ich.name = name;
   const p = S.profile.find((x) => x.id === S.userId); if (p) p.name = name;
+  namenCache.quelle = null;
   zeichneAlles();
   meldung("Vorname gespeichert.");
 });

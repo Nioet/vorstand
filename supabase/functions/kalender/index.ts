@@ -209,6 +209,24 @@ export function baueKalender(opts: {
 //  Server
 // ---------------------------------------------------------------------
 
+type Person = { id: string; name: string | null; email: string | null };
+
+/** Wie in der App: nur der Vorname, bei Gleichheit mit Anfangsbuchstaben des Nachnamens */
+export function anzeigeNamen(profile: Person[]): Map<string, string> {
+  const teile = (p: Person) => (p.name || "").trim().split(/\s+/).filter(Boolean);
+  const vor = (p: Person) => teile(p)[0] || (p.email || "").split("@")[0] || "?";
+  const anzahl = new Map<string, number>();
+  for (const p of profile) anzahl.set(vor(p).toLowerCase(), (anzahl.get(vor(p).toLowerCase()) ?? 0) + 1);
+  const namen = new Map<string, string>();
+  for (const p of profile) {
+    const t = teile(p);
+    namen.set(p.id, (anzahl.get(vor(p).toLowerCase()) ?? 0) > 1 && t.length > 1
+      ? `${t[0]} ${t[t.length - 1][0].toUpperCase()}.`
+      : vor(p));
+  }
+  return namen;
+}
+
 /** Vergleich, der nicht verrät, wie viele Zeichen gestimmt haben */
 function gleich(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
@@ -246,23 +264,25 @@ async function antworte(req: Request): Promise<Response> {
   type AufgabeRoh = Omit<Aufgabe, "zustaendig_name"> & {
     termin_id: string | null;
     projekt_id: string | null;
-    profiles: { name: string | null; email: string | null } | null;
+    zustaendig: string | null;
   };
-  const [termineRoh, aufgabenRoh, projekte] = await Promise.all([
+  const [termineRoh, aufgabenRoh, projekte, profile] = await Promise.all([
     lies<TerminRoh[]>(
       `termine?select=id,titel,datum,bis_datum,start_zeit,end_zeit,ort,beschreibung,updated_at,projekt_id` +
         `&or=(datum.gte.${ab},bis_datum.gte.${ab})&order=datum`,
     ),
     // offene Aufgaben + alle Unterpunkte (auch erledigte, für die Checkliste)
     lies<AufgabeRoh[]>(
-      `aufgaben?select=id,titel,beschreibung,faellig,faellig_zeit,status,updated_at,created_at,termin_id,projekt_id,` +
-        `profiles!aufgaben_zustaendig_fkey(name,email)&or=(status.neq.erledigt,termin_id.not.is.null)&order=created_at`,
+      `aufgaben?select=id,titel,beschreibung,faellig,faellig_zeit,status,updated_at,created_at,termin_id,projekt_id,zustaendig` +
+        `&or=(status.neq.erledigt,termin_id.not.is.null)&order=created_at`,
     ),
     lies<{ id: string; name: string }[]>("projekte?select=id,name"),
+    lies<Person[]>("profiles?select=id,name,email"),
   ]);
+  const namen = anzeigeNamen(profile);
   const projektName = new Map(projekte.map((p) => [p.id, p.name]));
   const terminById = new Map(termineRoh.map((t) => [t.id, t]));
-  const werVon = (a: AufgabeRoh) => (a.profiles ? (a.profiles.name || a.profiles.email) : null);
+  const werVon = (a: AufgabeRoh) => (a.zustaendig ? namen.get(a.zustaendig) ?? null : null);
 
   const termine: Termin[] = termineRoh.map((t) => ({
     ...t,
