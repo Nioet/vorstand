@@ -470,6 +470,7 @@ function terminKarte(t, { mitMarke = true, mitProjekt = true } = {}) {
       ${t.ort ? `<span class="ort"><br>📍 ${esc(t.ort)}</span>` : ""}
       ${t.beschreibung ? `<span class="notiz"><br>${esc(t.beschreibung.length > 140 ? t.beschreibung.slice(0, 140) + " …" : t.beschreibung)}</span>` : ""}
       ${etiketten ? `<span class="etiketten">${etiketten}</span>` : ""}
+      ${punkte.length ? balken(fertig / punkte.length) : ""}
     </span></button>
     <button class="dupl-knopf" data-dupl-termin="${t.id}" aria-label="Termin „${esc(t.titel)}“ duplizieren" title="Duplizieren">＋</button></div>`;
 }
@@ -1009,7 +1010,16 @@ function projektZahlen(p) {
   const naechster = termine
     .filter((t) => (t.bis_datum || t.datum) >= h)
     .sort((a, b) => terminSchluessel(a).localeCompare(terminSchluessel(b)))[0] || null;
-  return { aufgaben, erledigt, offen: aufgaben.length - erledigt, termine, naechster };
+  // Für Balken und Zählung zählen nur die eigenen Aufgaben des Projekts (ohne Termin);
+  // Unterpunkte haben ihren eigenen Balken am Termin.
+  const freie = aufgaben.filter((a) => !a.termin_id);
+  const freieErledigt = freie.filter((a) => a.status === "erledigt").length;
+  const punkteNaechster = naechster ? unterpunkteVon(naechster.id) : [];
+  return {
+    aufgaben, erledigt, offen: aufgaben.length - erledigt, termine, naechster,
+    freie, freieErledigt, freieOffen: freie.length - freieErledigt,
+    punkteNaechster, punkteNaechsterErledigt: punkteNaechster.filter((a) => a.status === "erledigt").length,
+  };
 }
 
 const balken = (anteil) => `<span class="fortschritt" aria-hidden="true"><span style="width:${Math.round(anteil * 100)}%"></span></span>`;
@@ -1028,15 +1038,19 @@ function zeichneProjekte() {
       const wer = nameVon(x.zustaendig);
       const meta = [
         wer ? `👤 ${esc(wer)}${x.zustaendig === S.userId ? " (ich)" : ""}` : "",
-        z.aufgaben.length ? `✅ ${z.offen} offen` : "noch keine Aufgaben",
-        z.naechster ? `📅 nächster Termin: ${esc(langesDatum(z.naechster.datum))}` : "",
+        z.freie.length ? `✅ ${z.freieOffen} ${z.freieOffen === 1 ? "Aufgabe" : "Aufgaben"} offen` : "",
+        z.naechster
+          ? `📅 nächster Termin: ${esc(langesDatum(z.naechster.datum))}` +
+            (z.punkteNaechster.length ? ` · ☑ ${z.punkteNaechsterErledigt} von ${z.punkteNaechster.length}` : "")
+          : "",
+        !z.freie.length && !z.termine.length ? "noch leer" : "",
         x.abgeschlossen ? "✔ abgeschlossen" : "",
       ].filter(Boolean).join(" · ");
       const klasse = x.abgeschlossen ? " ist-abgeschlossen" : x.in_planung ? " ist-planung" : "";
       return `<div class="karte-zeile"><button class="projekt-karte${klasse}" data-projekt="${x.id}">
         <strong>📁 ${esc(x.name)}</strong>
         ${x.beschreibung ? `<span class="beschreibung">${esc(x.beschreibung.length > 120 ? x.beschreibung.slice(0, 120) + " …" : x.beschreibung)}</span>` : ""}
-        ${z.aufgaben.length ? balken(z.erledigt / z.aufgaben.length) : ""}
+        ${z.freie.length ? balken(z.freieErledigt / z.freie.length) : ""}
         <span class="meta">${meta}</span>
       </button>
       <button class="dupl-knopf" data-dupl-projekt="${x.id}" aria-label="Projekt „${esc(x.name)}“ duplizieren" title="Duplizieren">＋</button></div>`;
@@ -1076,9 +1090,10 @@ function zeichneProjekte() {
   const h = heute();
   const kommende = z.termine.filter((t) => (t.bis_datum || t.datum) >= h).sort(nachText("datum"));
   const vergangene = z.termine.filter((t) => (t.bis_datum || t.datum) < h).sort(nachText("datum")).reverse();
-  const offen = z.aufgaben.filter((a) => a.status !== "erledigt").sort(nachPosition);
+  const offen = z.freie.filter((a) => a.status !== "erledigt").sort(nachPosition);
   S.listen["projekt-offen"] = offen.map((a) => a.id);
-  const fertig = z.aufgaben.filter((a) => a.status === "erledigt");
+  const fertig = z.freie.filter((a) => a.status === "erledigt");
+  const hatUnterpunkte = z.aufgaben.length > z.freie.length;
 
   detail.innerHTML = `
     <button class="knopf leise" data-aktion="projekte-zurueck">← Alle Projekte</button>
@@ -1087,7 +1102,7 @@ function zeichneProjekte() {
       <h2 style="padding-right:3.2rem">📁 ${esc(p.name)}${p.abgeschlossen ? ' <span class="marke">abgeschlossen</span>' : p.in_planung ? ' <span class="marke planung">in Planung</span>' : ""}</h2>
       ${p.beschreibung ? `<p>${esc(p.beschreibung)}</p>` : ""}
       <p>👤 ${p.zustaendig ? `Zuständig: <strong>${esc(nameVon(p.zustaendig) || "?")}</strong>${p.zustaendig === S.userId ? " (ich)" : ""}` : "Noch niemand zuständig"}</p>
-      ${z.aufgaben.length ? `${balken(z.erledigt / z.aufgaben.length)}<p class="klein">${z.erledigt} von ${z.aufgaben.length} Aufgaben erledigt</p>` : ""}
+      ${z.freie.length ? `${balken(z.freieErledigt / z.freie.length)}<p class="klein">${z.freieErledigt} von ${z.freie.length} Aufgaben erledigt</p>` : ""}
       ${p.in_planung && !p.abgeschlossen ? `<button class="knopf haupt breit" data-aktion="projekt-starten">▶ Projekt starten</button>` : ""}
       <button class="knopf breit" data-aktion="projekt-bearbeiten">Projekt bearbeiten</button>
     </div>
@@ -1104,6 +1119,7 @@ function zeichneProjekte() {
 
     <section class="projekt-detail-abschnitt">
       <h2>Aufgaben</h2>
+      ${hatUnterpunkte ? `<p class="klein">Hier stehen die Aufgaben des Projekts ohne Termin. Die Unterpunkte der Termine findet ihr direkt bei den Terminen.</p>` : ""}
       <button class="knopf haupt breit" data-aktion="projekt-aufgabe">＋ Aufgabe für dieses Projekt</button>
       ${offen.length > 1 ? `<div class="sortier-leiste" style="margin-top:.6rem">
         <button class="knopf klein" data-aktion="sortieren-umschalten">↕ Reihenfolge ändern</button>

@@ -559,3 +559,6 @@ input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }
   border-radius: 10px;
   font-size: .95rem;
 }
+
+/* Balken auf Terminkarten (Unterpunkte) */
+.termin .fortschritt { height: .45rem; margin-top: .55rem; }
