@@ -17,6 +17,8 @@ export type Termin = {
   beschreibung: string | null;
   updated_at: string;
   projekt_name?: string | null;
+  extern?: boolean;
+  wer?: string | null;        // bei externen Terminen: wer von uns übernimmt
   unterpunkte?: { titel: string; erledigt: boolean; wer: string | null; faellig: string | null; zeit?: string | null }[];
 };
 
@@ -107,7 +109,7 @@ function terminZuEvent(t: Termin, jetzt: string, domain: string, appUrl?: string
     `UID:termin-${t.id}@${domain}`,
     `DTSTAMP:${jetzt}`,
     `LAST-MODIFIED:${utcStempel(t.updated_at)}`,
-    `SUMMARY:${esc(t.titel)}`,
+    `SUMMARY:${esc(t.extern ? `Extern: ${t.titel}${t.wer ? ` (${t.wer})` : ""}` : t.titel)}`,
   ];
   const ende = t.bis_datum ?? t.datum;
 
@@ -137,6 +139,7 @@ function terminZuEvent(t: Termin, jetzt: string, domain: string, appUrl?: string
     return `${u.erledigt ? "☑" : "☐"} ${u.titel}${extra ? ` (${extra})` : ""}`;
   });
   const text = [
+    t.extern ? `Externer Termin${t.wer ? ` – übernimmt: ${t.wer}` : ""}` : null,
     t.beschreibung,
     t.projekt_name ? `Projekt: ${t.projekt_name}` : null,
     punkte.length ? `Unterpunkte:\n${punkte.join("\n")}` : null,
@@ -260,7 +263,7 @@ async function antworte(req: Request): Promise<Response> {
 
   // Termine ab einem halben Jahr zurück
   const ab = new Date(Date.now() - 183 * 24 * 3600 * 1000).toISOString().slice(0, 10);
-  type TerminRoh = Termin & { projekt_id: string | null };
+  type TerminRoh = Termin & { projekt_id: string | null; zustaendig: string | null; quelle: string | null };
   type AufgabeRoh = Omit<Aufgabe, "zustaendig_name"> & {
     termin_id: string | null;
     projekt_id: string | null;
@@ -269,7 +272,7 @@ async function antworte(req: Request): Promise<Response> {
   };
   const [termineRoh, aufgabenRoh, projekte, profile] = await Promise.all([
     lies<TerminRoh[]>(
-      `termine?select=id,titel,datum,bis_datum,start_zeit,end_zeit,ort,beschreibung,updated_at,projekt_id` +
+      `termine?select=id,titel,datum,bis_datum,start_zeit,end_zeit,ort,beschreibung,updated_at,projekt_id,extern,zustaendig,quelle` +
         `&or=(datum.gte.${ab},bis_datum.gte.${ab})&order=datum`,
     ),
     // offene Aufgaben + alle Unterpunkte (auch erledigte, für die Checkliste)
@@ -286,8 +289,10 @@ async function antworte(req: Request): Promise<Response> {
   const werVon = (a: AufgabeRoh) =>
     a.zustaendig ? namen.get(a.zustaendig) ?? null : a.zustaendig_extern ? `${a.zustaendig_extern} (extern)` : null;
 
-  const termine: Termin[] = termineRoh.map((t) => ({
+  // Termine von der Kreis-Website nur, wenn jemand von uns sie übernimmt
+  const termine: Termin[] = termineRoh.filter((t) => !t.quelle || t.zustaendig).map((t) => ({
     ...t,
+    wer: t.zustaendig ? namen.get(t.zustaendig) ?? null : null,
     projekt_name: t.projekt_id ? projektName.get(t.projekt_id) ?? null : null,
     unterpunkte: aufgabenRoh
       .filter((a) => a.termin_id === t.id)

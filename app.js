@@ -483,7 +483,28 @@ function projektEtikett(projektId) {
   return p ? `<span class="etikett">📁 ${esc(p.name)}</span>` : "";
 }
 
+// Externe Termine: klein und dunkelgrün – nur Datum, was und wer von uns hingeht
+function externKarte(t) {
+  const wer = nameVon(t.zustaendig);
+  const datum = t.bis_datum && t.bis_datum !== t.datum
+    ? `${wochentag(t.datum)}. ${kurzesDatum(t.datum).slice(0, 6)}–${kurzesDatum(t.bis_datum).slice(0, 6)}`
+    : `${wochentag(t.datum)}. ${kurzesDatum(t.datum).slice(0, 6)}`;
+  const punkte = unterpunkteVon(t.id);
+  const offen = punkte.filter((a) => a.status !== "erledigt").length;
+  return `<button class="termin-extern" data-termin="${t.id}">
+    <span class="te-datum">${esc(datum)}</span>
+    <span class="te-text">
+      <span class="te-titel">${esc(t.titel)}</span>
+      ${wer || punkte.length ? `<span class="te-wer">${bloecke([
+        wer ? `👤 ${esc(wer)}${t.zustaendig === S.userId ? " (ich)" : ""}` : "",
+        punkte.length ? `☑ ${punkte.length - offen} von ${punkte.length}` : "",
+      ])}</span>` : ""}
+    </span>
+  </button>`;
+}
+
 function terminKarte(t, { mitMarke = true, mitProjekt = true } = {}) {
+  if (t.extern) return externKarte(t);
   const h = heute();
   const laeuft = t.datum <= h && (t.bis_datum || t.datum) >= h;
   const punkte = unterpunkteVon(t.id);
@@ -663,7 +684,14 @@ function oeffneTermin(t = null, vorgabe = {}) {
   bearbeiteterTermin = t;
   entwurfPunkte = [];
   punkteSortieren = false;
-  $("#termin-ueberschrift").textContent = t ? "Termin bearbeiten" : "Neuer Termin";
+  const importiert = !!t?.quelle;
+  $("#termin-ueberschrift").textContent = importiert ? "Termin vom Kreisverband" : t ? "Termin bearbeiten" : "Neuer Termin";
+  $("#t-felder").hidden = importiert;
+  $("#t-info").hidden = !importiert;
+  if (importiert) $("#t-info").innerHTML = terminInfo(t);
+  $("#t-extern").checked = !!t?.extern;
+  personenOptionen($("#t-wer"), t?.zustaendig);
+  externUmschalten();
   $("#t-titel").value = t?.titel || "";
   $("#t-datum").value = t?.datum || heute();
   $("#t-ganztags").checked = t ? !t.start_zeit : false;
@@ -676,12 +704,29 @@ function oeffneTermin(t = null, vorgabe = {}) {
   projektOptionen($("#t-projekt"), t ? t.projekt_id : vorgabe.projekt_id);
   titelVorgabeAktualisieren();
   $("#t-neuer-punkt").value = "";
-  $("#t-loeschen").hidden = !t;
+  $("#t-loeschen").hidden = !t || importiert;
   ganztagsUmschalten();
   zeichneUnterpunkte();
   dT.returnValue = "";
   dT.showModal();
   if (!t && !istTouch()) $("#t-titel").focus();
+}
+
+function externUmschalten() {
+  $("#t-wer-bereich").hidden = !$("#t-extern").checked;
+}
+$("#t-extern").addEventListener("change", externUmschalten);
+
+// Ansicht für Termine von der Website: alles zum Lesen, dazu der Link
+function terminInfo(t) {
+  const datum = t.bis_datum && t.bis_datum !== t.datum ? `${langesDatum(t.datum)} bis ${langesDatum(t.bis_datum)}` : langesDatum(t.datum);
+  const zeit = t.start_zeit ? (t.end_zeit ? `${uhr(t.start_zeit)}–${uhr(t.end_zeit)}\u00a0Uhr` : `${uhr(t.start_zeit)}\u00a0Uhr`) : "";
+  return `<h3 class="ti-titel">${esc(t.titel)}</h3>
+    <p class="ti-zeile">📅 ${bloecke([esc(datum), zeit])}</p>
+    ${t.ort ? `<p class="ti-zeile">📍 ${esc(t.ort)}</p>` : ""}
+    ${t.beschreibung ? `<p class="ti-text">${esc(t.beschreibung)}</p>` : ""}
+    ${t.link ? `<a class="knopf klein ti-link" href="${esc(t.link)}" target="_blank" rel="noopener">Auf der Website ansehen ↗</a>` : ""}
+    <p class="klein ti-hinweis">Kommt automatisch von der Website des Kreisverbands und wird stündlich aktualisiert. Hier haltet ihr fest, wer hingeht, und könnt Unterpunkte anlegen.</p>`;
 }
 
 function zeichneUnterpunkte() {
@@ -775,6 +820,19 @@ $("#t-unterpunkte").addEventListener("change", async (e) => {
 
 dT.addEventListener("close", async () => {
   if (dT.returnValue !== "speichern") return;
+  const extern = $("#t-extern").checked;
+  const zustaendig = extern ? $("#t-wer").value || null : null;
+  if (bearbeiteterTermin?.quelle) {
+    // Termin von der Website: nur unsere Ergänzungen speichern
+    const offen = $("#t-neuer-punkt").value.trim();
+    const { error } = await sb.from("termine")
+      .update({ zustaendig, projekt_id: $("#t-projekt").value || null })
+      .eq("id", bearbeiteterTermin.id);
+    if (!error && offen) await sb.from("aufgaben").insert({ titel: offen, termin_id: bearbeiteterTermin.id });
+    if (error) { console.error(error); meldung("Speichern hat nicht geklappt. Bitte noch einmal versuchen.", true); return wiederOeffnen(dT); }
+    meldung("Gespeichert.");
+    return neuLadenUndZeichnen();
+  }
   const datum = $("#t-datum").value;
   let bis = $("#t-bis").value || null;
   const start = $("#t-ganztags").checked ? null : $("#t-start").value || null;
@@ -793,6 +851,8 @@ dT.addEventListener("close", async () => {
     ort: leer($("#t-ort").value),
     beschreibung: leer($("#t-notiz").value),
     projekt_id: $("#t-projekt").value || null,
+    extern,
+    zustaendig,
   };
   // Noch nicht hinzugefügter Text im Unterpunkt-Feld soll nicht verloren gehen
   const offen = $("#t-neuer-punkt").value.trim();
@@ -968,7 +1028,7 @@ function terminAuswahl(gewaehlt) {
   const liste = S.termine.filter((t) => (t.bis_datum || t.datum) >= grenze || t.id === gewaehlt);
   $("#a-termin").innerHTML =
     `<option value="">— keinem Termin —</option>` +
-    liste.map((t) => `<option value="${t.id}">${esc(kurzesDatum(t.datum))} – ${esc(t.titel)}</option>`).join("");
+    liste.map((t) => `<option value="${t.id}">${esc(kurzesDatum(t.datum))} – ${esc(t.titel)}${t.extern ? " (extern)" : ""}</option>`).join("");
   $("#a-termin").value = gewaehlt || "";
 }
 

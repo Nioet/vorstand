@@ -22,6 +22,7 @@ config.js                        → HIER Supabase-Adresse + Schlüssel eintrage
 manifest.webmanifest, icon-*     → für „Zum Startbildschirm hinzufügen“
 supabase/migrations/…sql         → Datenbank (alle Dateien der Reihe nach ausführen)
 supabase/functions/kalender/     → Kalender-Abo (.ics)
+supabase/functions/kreis-termine/ → holt stündlich die Termine des Kreisverbands
 supabase/email-vorlagen/         → deutsche Anmelde-E-Mail mit Code
 .github/workflows/wach-halten.yml→ optional: hält das Gratis-Projekt aktiv
 ```
@@ -42,7 +43,7 @@ Bereits erledigt: Supabase-Projekt **„Vorstand“** (Organisation „Grüne BK
 
 ### 2. Datenbank einrichten
 1. Im Dashboard links **SQL Editor** → **New query**.
-2. Den kompletten Inhalt von `supabase/migrations/20261121000000_vorstand.sql` einfügen → **Run**, danach genauso `20261121020000_projekte_unterpunkte.sql`, `20261121030000_duplizieren.sql` `20261121040000_reihenfolge.sql` `20261121050000_projekt_zustaendig.sql` `20261121060000_projekte_in_planung.sql` `20261121070000_uhrzeit_fristen.sql` `20261122010000_unterpunkte_erben_projekt.sql` und `20261122020000_externe_zustaendige.sql`.
+2. Den kompletten Inhalt von `supabase/migrations/20261121000000_vorstand.sql` einfügen → **Run**, danach genauso `20261121020000_projekte_unterpunkte.sql`, `20261121030000_duplizieren.sql` `20261121040000_reihenfolge.sql` `20261121050000_projekt_zustaendig.sql` `20261121060000_projekte_in_planung.sql` `20261121070000_uhrzeit_fristen.sql` `20261122010000_unterpunkte_erben_projekt.sql`, `20261122020000_externe_zustaendige.sql` und `20261122030000_externe_termine.sql` (diese erst nach Schritt 5b, sie richtet den stündlichen Abruf ein; die Projekt-Adresse darin anpassen).
    Das Skript kann gefahrlos mehrfach ausgeführt werden.
 
 ### 3. Anmeldung einstellen
@@ -75,6 +76,9 @@ supabase db push
 supabase functions deploy kalender --no-verify-jwt
 supabase secrets set KALENDER_NAME="Vorstand Grüne Musterstadt"
 ```
+
+### 5b. Termine des Kreisverbands (Edge Function `kreis-termine`)
+Genauso wie oben: Funktion **`kreis-termine`** mit dem Inhalt von `supabase/functions/kreis-termine/index.ts` anlegen und **„Verify JWT“ ausschalten**. Sie liest die öffentliche ICS-Datei der Kreis-Website und trägt die Termine als externe Termine ein. Andere Quelle: Secret `KREIS_ICS_URL` setzen. Der stündliche Aufruf kommt aus der Migration `20261122030000_externe_termine.sql` (pg_cron).
 
 ### 6. Schlüssel in `config.js` eintragen
 Unter **Project Settings → API Keys** (oder oben auf **Connect**):
