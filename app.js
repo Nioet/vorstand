@@ -653,8 +653,8 @@ function projektOptionen(select, gewaehlt) {
   const mitNeu = select.id === "t-projekt" || select.id === "a-projekt";
   select.innerHTML =
     `<option value="">— kein Projekt —</option>` +
-    (mitNeu ? `<option value="__neu">＋ Neues Projekt erstellen …</option>` : "") +
-    liste.map((p) => `<option value="${p.id}">${esc(p.name)}${p.abgeschlossen ? " (abgeschlossen)" : p.in_planung ? " (in Planung)" : ""}</option>`).join("");
+    liste.map((p) => `<option value="${p.id}">${esc(p.name)}${p.abgeschlossen ? " (abgeschlossen)" : p.in_planung ? " (in Planung)" : ""}</option>`).join("") +
+    (mitNeu ? `<option value="__neu">＋ Neues Projekt erstellen</option>` : "");
   select.value = gewaehlt || "";
   select.dataset.vorher = select.value;
 }
@@ -1104,8 +1104,8 @@ function terminAuswahl(gewaehlt) {
   const liste = S.termine.filter((t) => (t.bis_datum || t.datum) >= grenze || t.id === gewaehlt);
   $("#a-termin").innerHTML =
     `<option value="">— keinem Termin —</option>` +
-    `<option value="__neu">＋ Neuen Termin erstellen …</option>` +
-    liste.map((t) => `<option value="${t.id}">${esc(kurzesDatum(t.datum))} – ${esc(t.titel)}${t.extern ? " (extern)" : ""}</option>`).join("");
+    liste.map((t) => `<option value="${t.id}">${esc(kurzesDatum(t.datum))} – ${esc(t.titel)}${t.extern ? " (extern)" : ""}</option>`).join("") +
+    `<option value="__neu">＋ Neuen Termin erstellen</option>`;
   $("#a-termin").value = gewaehlt || "";
   $("#a-termin").dataset.vorher = $("#a-termin").value;
 }
