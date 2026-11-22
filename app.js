@@ -545,10 +545,13 @@ function aufgabeHtml(a, { mitProjekt = true, liste = null } = {}) {
     mitProjekt ? projektEtikett(projektIdVonAufgabe(a)) : "",
   ].join("");
   return `<article class="aufgabe${a.status === "erledigt" ? " ist-erledigt" : ""}" data-id="${a.id}"${liste ? ` data-liste="${liste}"` : ""}>
-    ${sortierbar ? "" : `<button class="dupl-knopf" data-tun="duplizieren" aria-label="„${esc(a.titel)}“ duplizieren" title="Duplizieren">＋</button>`}
-    <button class="titel-knopf" data-tun="bearbeiten">${esc(a.titel)}</button>
-    ${sortierbar ? "" : `<span class="plus-platz plus-rest" aria-hidden="true"></span>`}
-    <div class="meta">${bloecke([`👤 ${esc(wer ? (istMeine ? `${wer} (ich)` : wer) : "noch niemand")}`, frist])}</div>
+    <div class="aufgabe-kopf">
+      <div class="aufgabe-text">
+        <button class="titel-knopf" data-tun="bearbeiten">${esc(a.titel)}</button>
+        ${wer || frist ? `<div class="meta">${bloecke([wer ? `👤 ${esc(istMeine ? `${wer} (ich)` : wer)}` : "", frist])}</div>` : ""}
+      </div>
+      ${sortierbar ? "" : `<button class="dupl-knopf" data-tun="duplizieren" aria-label="„${esc(a.titel)}“ duplizieren" title="Duplizieren">＋</button>`}
+    </div>
     ${etiketten ? `<div class="etiketten">${etiketten}</div>` : ""}
     <div class="knoepfe">${knoepfe}</div>
   </article>`;
@@ -601,7 +604,7 @@ function zeichneTermine() {
         <span class="termin-text">
           <strong>Frist: ${esc(a.titel)}${relMarke(a.faellig)}</strong>
           ${a.faellig_zeit ? `<span class="zeit">bis ${uhr(a.faellig_zeit)} Uhr</span><br>` : ""}
-          <span class="ort">👤 ${esc(wer || "noch niemand zuständig")}</span>
+          ${wer ? `<span class="ort">👤 ${esc(wer)}</span>` : ""}
           ${proj ? `<span class="etiketten">${proj}</span>` : ""}
         </span></button>`;
     }
@@ -693,7 +696,7 @@ function zeichneUnterpunkte() {
   liste.innerHTML = punkte
     .map((a, i) => {
       const wer = nameVon(a.zustaendig);
-      const meta = bloecke([wer ? `👤 ${esc(wer)}` : "👤 noch niemand", a.faellig ? fristText(a) : ""]);
+      const meta = bloecke([wer ? `👤 ${esc(wer)}` : "", a.faellig ? fristText(a) : ""]);
       const pfeile = punkteSortieren
         ? `<button type="button" class="punkt-pfeil" data-punkt-hoch="${a.id}" aria-label="Nach oben" ${i === 0 ? "disabled" : ""}>↑</button>
            <button type="button" class="punkt-pfeil" data-punkt-runter="${a.id}" aria-label="Nach unten" ${i === punkte.length - 1 ? "disabled" : ""}>↓</button>`

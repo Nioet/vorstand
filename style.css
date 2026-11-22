@@ -449,7 +449,7 @@ dialog details summary { cursor: pointer; color: var(--tanne); font-weight: 600;
 .karte-zeile .plus-platz { display: block; float: right; width: 2.6rem; height: 2.6rem; margin-left: .4rem; }
 .karte-zeile > .projekt-karte .plus-platz { width: 2.5rem; height: 2.4rem; }
 .aufgabe { position: relative; }
-.aufgabe .titel-knopf { padding-right: 3.2rem; }
+
 .dupl-knopf {
   position: absolute;
   top: .55rem;
@@ -642,7 +642,10 @@ input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }
 /* Balken auf der Projektkarte unter den Plus-Platzhalter schieben, damit er die volle Breite hat */
 .projekt-karte > .fortschritt-text { clear: right; }
 
-/* Aufgabenkarten: Platzhalter für den Teil des Plus, der unter die Titelzeile ragt.
-   Bei zweizeiligen Titeln entsteht nur ein kleiner Einzug. */
-.aufgabe .plus-rest { display: block; float: right; width: 2.6rem; height: 1.25rem; margin-left: .4rem; }
+
+
+/* Aufgabenkarte: Titel + Infozeile links, Plus in eigener Spalte rechts */
+.aufgabe-kopf { display: flex; align-items: flex-start; gap: .6rem; }
+.aufgabe-text { flex: 1; min-width: 0; }
+.aufgabe-kopf > .dupl-knopf { position: static; flex: 0 0 auto; margin: -.35rem -.45rem 0 0; }
 .aufgabe .meta { margin-top: .3rem; }
