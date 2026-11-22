@@ -483,16 +483,19 @@ function projektEtikett(projektId) {
   return p ? `<span class="etikett">📁 ${esc(p.name)}</span>` : "";
 }
 
+// Externe Termine, die mit einem unserer Termine verknüpft sind
+const verknuepfteVon = (id) =>
+  S.termine.filter((x) => x.gehoert_zu === id).sort((a, b) => (a.datum + (a.start_zeit || "")).localeCompare(b.datum + (b.start_zeit || "")));
+const istVerknuepft = (t) => !!(t.gehoert_zu && S.termine.some((x) => x.id === t.gehoert_zu));
+
 // Externe Termine: klein und dunkelgrün – nur Datum, was und wer von uns hingeht
 function externKarte(t) {
   const wer = nameVon(t.zustaendig);
-  const datum = t.bis_datum && t.bis_datum !== t.datum
-    ? `${wochentag(t.datum)}. ${kurzesDatum(t.datum).slice(0, 6)}–${kurzesDatum(t.bis_datum).slice(0, 6)}`
-    : `${wochentag(t.datum)}. ${kurzesDatum(t.datum).slice(0, 6)}`;
+  const mehrtaegig = t.bis_datum && t.bis_datum !== t.datum;
   const punkte = unterpunkteVon(t.id);
   const offen = punkte.filter((a) => a.status !== "erledigt").length;
   return `<button class="termin-extern" data-termin="${t.id}">
-    <span class="te-datum">${esc(datum)}</span>
+    <span class="te-datum" ${mehrtaegig ? `title="bis ${esc(kurzesDatum(t.bis_datum))}"` : ""}>${alsDatum(t.datum).getDate()}${mehrtaegig ? "+" : ""}</span>
     <span class="te-text">
       <span class="te-titel">${esc(t.titel)}</span>
       ${wer || punkte.length ? `<span class="te-wer">${bloecke([
@@ -509,8 +512,10 @@ function terminKarte(t, { mitMarke = true, mitProjekt = true } = {}) {
   const laeuft = t.datum <= h && (t.bis_datum || t.datum) >= h;
   const punkte = unterpunkteVon(t.id);
   const fertig = punkte.filter((a) => a.status === "erledigt").length;
+  const verkn = verknuepfteVon(t.id);
   const etiketten = [
     mitProjekt ? projektEtikett(t.projekt_id) : "",
+    verkn.length ? `<span class="etikett verknuepft">🔗 ${verkn.length === 1 ? esc(verkn[0].titel.length > 40 ? verkn[0].titel.slice(0, 40) + " …" : verkn[0].titel) : `${verkn.length} externe Termine`}</span>` : "",
   ].join("");
   return `<div class="karte-zeile"><button class="termin${laeuft ? " heute" : ""}" data-termin="${t.id}">${datumBlock(t.datum)}
     <span class="termin-text">
@@ -595,6 +600,7 @@ function zeichneTermine() {
   const h = heute();
   const kommend = S.zeitraum === "kommend";
   const eintraege = S.termine
+    .filter((t) => !istVerknuepft(t))
     .filter((t) => (kommend ? (t.bis_datum || t.datum) >= h : (t.bis_datum || t.datum) < h))
     .map((t) => ({ art: "termin", datum: t.datum, sort: t.datum + (t.start_zeit || "00:00"), t }));
 
@@ -691,7 +697,9 @@ function oeffneTermin(t = null, vorgabe = {}) {
   if (importiert) $("#t-info").innerHTML = terminInfo(t);
   $("#t-extern").checked = !!t?.extern;
   personenOptionen($("#t-wer"), t?.zustaendig);
+  eigeneTerminOptionen(t);
   externUmschalten();
+  zeichneVerknuepfte(t);
   $("#t-titel").value = t?.titel || "";
   $("#t-datum").value = t?.datum || heute();
   $("#t-ganztags").checked = t ? !t.start_zeit : false;
@@ -714,7 +722,50 @@ function oeffneTermin(t = null, vorgabe = {}) {
 
 function externUmschalten() {
   $("#t-wer-bereich").hidden = !$("#t-extern").checked;
+  // Ein Termin, der selbst externe Termine sammelt, wird nicht seinerseits verknüpft
+  $("#t-verknuepft").hidden = $("#t-extern").checked || !bearbeiteterTermin || !verknuepfteVon(bearbeiteterTermin.id).length;
 }
+
+// Auswahl „Gehört zu unserem Termin“: Termine am selben Tag zuerst, dann nach Abstand
+function eigeneTerminOptionen(t) {
+  const bezug = t?.datum || $("#t-datum").value || heute();
+  const grenze = isoTag(new Date(Date.now() - 30 * 86400000));
+  const abstand = (x) => Math.abs(alsDatum(x.datum) - alsDatum(bezug));
+  const liste = S.termine
+    .filter((x) => !x.extern && x.id !== t?.id && ((x.bis_datum || x.datum) >= grenze || x.id === t?.gehoert_zu))
+    .sort((a, b) => abstand(a) - abstand(b) || a.datum.localeCompare(b.datum));
+  $("#t-gehoert").innerHTML =
+    `<option value="">— nicht verknüpft —</option>` +
+    liste.map((x) => `<option value="${x.id}">${x.datum === bezug ? "★ " : ""}${esc(kurzesDatum(x.datum))} – ${esc(x.titel)}</option>`).join("");
+  $("#t-gehoert").value = t?.gehoert_zu || "";
+}
+
+function zeichneVerknuepfte(t) {
+  const liste = t ? verknuepfteVon(t.id) : [];
+  $("#t-verknuepft-liste").innerHTML = liste
+    .map((x) => `<div class="verknuepft-zeile">${externKarte(x).replace("data-termin=", 'type="button" data-verknuepft-oeffnen=')}
+      <button type="button" class="punkt-weg" data-verknuepfung-loesen="${x.id}" aria-label="Verknüpfung mit „${esc(x.titel)}“ lösen" title="Verknüpfung lösen">✕</button></div>`)
+    .join("");
+  externUmschalten();
+}
+
+$("#t-verknuepft-liste").addEventListener("click", async (e) => {
+  const oeffnen = e.target.closest("[data-verknuepft-oeffnen]");
+  const loesen = e.target.closest("[data-verknuepfung-loesen]");
+  if (oeffnen) {
+    const x = terminVon(oeffnen.dataset.verknuepftOeffnen);
+    dT.close("abbrechen");
+    if (x) setTimeout(() => oeffneTermin(x), 50);
+  } else if (loesen) {
+    const id = loesen.dataset.verknuepfungLoesen;
+    const { error } = await sb.from("termine").update({ gehoert_zu: null }).eq("id", id);
+    if (error) return meldung("Das hat nicht geklappt.", true);
+    const x = terminVon(id);
+    if (x) x.gehoert_zu = null;
+    zeichneVerknuepfte(bearbeiteterTermin);
+    meldung("Verknüpfung gelöst – der Termin steht wieder in der Übersicht.");
+  }
+});
 $("#t-extern").addEventListener("change", externUmschalten);
 
 // Ansicht für Termine von der Website: alles zum Lesen, dazu der Link
@@ -826,7 +877,7 @@ dT.addEventListener("close", async () => {
     // Termin von der Website: nur unsere Ergänzungen speichern
     const offen = $("#t-neuer-punkt").value.trim();
     const { error } = await sb.from("termine")
-      .update({ zustaendig, projekt_id: $("#t-projekt").value || null })
+      .update({ zustaendig, projekt_id: $("#t-projekt").value || null, gehoert_zu: $("#t-gehoert").value || null })
       .eq("id", bearbeiteterTermin.id);
     if (!error && offen) await sb.from("aufgaben").insert({ titel: offen, termin_id: bearbeiteterTermin.id });
     if (error) { console.error(error); meldung("Speichern hat nicht geklappt. Bitte noch einmal versuchen.", true); return wiederOeffnen(dT); }
@@ -853,6 +904,7 @@ dT.addEventListener("close", async () => {
     projekt_id: $("#t-projekt").value || null,
     extern,
     zustaendig,
+    gehoert_zu: extern ? $("#t-gehoert").value || null : null,
   };
   // Noch nicht hinzugefügter Text im Unterpunkt-Feld soll nicht verloren gehen
   const offen = $("#t-neuer-punkt").value.trim();
@@ -1614,6 +1666,10 @@ $("#sicherung-datei").addEventListener("change", async (e) => {
       projekt_id: t.projekt_id && projektIds.has(t.projekt_id) ? t.projekt_id : null,
     }));
     const terminIds = new Set([...termine.map((t) => t.id), ...S.termine.map((t) => t.id)]);
+    for (const t of termine) {
+      t.zustaendig = person(t.zustaendig);
+      if (t.gehoert_zu && !terminIds.has(t.gehoert_zu)) t.gehoert_zu = null;
+    }
     const aufgaben = (daten.aufgaben || []).map((a) => ({
       ...a,
       zustaendig: person(a.zustaendig),
