@@ -547,6 +547,7 @@ function aufgabeHtml(a, { mitProjekt = true, liste = null } = {}) {
   return `<article class="aufgabe${a.status === "erledigt" ? " ist-erledigt" : ""}" data-id="${a.id}"${liste ? ` data-liste="${liste}"` : ""}>
     ${sortierbar ? "" : `<button class="dupl-knopf" data-tun="duplizieren" aria-label="„${esc(a.titel)}“ duplizieren" title="Duplizieren">＋</button>`}
     <button class="titel-knopf" data-tun="bearbeiten">${esc(a.titel)}</button>
+    ${sortierbar ? "" : `<span class="plus-platz plus-rest" aria-hidden="true"></span>`}
     <div class="meta">${bloecke([`👤 ${esc(wer ? (istMeine ? `${wer} (ich)` : wer) : "noch niemand")}`, frist])}</div>
     ${etiketten ? `<div class="etiketten">${etiketten}</div>` : ""}
     <div class="knoepfe">${knoepfe}</div>

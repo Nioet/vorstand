@@ -641,3 +641,8 @@ input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }
 .aufgabe .knoepfe { margin-top: .75rem; }
 /* Balken auf der Projektkarte unter den Plus-Platzhalter schieben, damit er die volle Breite hat */
 .projekt-karte > .fortschritt-text { clear: right; }
+
+/* Aufgabenkarten: Platzhalter für den Teil des Plus, der unter die Titelzeile ragt.
+   Bei zweizeiligen Titeln entsteht nur ein kleiner Einzug. */
+.aufgabe .plus-rest { display: block; float: right; width: 2.6rem; height: 1.25rem; margin-left: .4rem; }
+.aufgabe .meta { margin-top: .3rem; }
