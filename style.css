@@ -653,7 +653,7 @@ input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }
 /* Externe Zuständige: Freitextfeld unter der Personenauswahl */
 #a-extern { margin-top: .5rem; }
 
-/* ---------- Externe Termine (z. B. Kreisverband): klein und dunkelgrün ---------- */
+/* ---------- Externe Termine (z. B. Kreisverband): klein und hellgrün getönt ---------- */
 .termin-extern {
   display: flex;
   align-items: center;
@@ -663,28 +663,28 @@ input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }
   font: inherit;
   font-size: .88rem;
   line-height: 1.3;
-  color: var(--weiss);
-  background: var(--tanne);
+  color: #1f3d2c;
+  background: #e4eee0;
   border: none;
   border-radius: 10px;
   padding: .45rem .8rem;
   margin-bottom: .4rem;
   cursor: pointer;
 }
-.termin-extern:active { filter: brightness(1.15); }
+.termin-extern:active { filter: brightness(.96); }
 /* kleines Datumsquadrat wie bei den großen Karten */
 .te-datum {
   flex: 0 0 auto;
   min-width: 2.4rem;
   padding: .1rem .3rem .15rem;
   border-radius: 7px;
-  background: rgba(255,255,255,.14);
+  background: var(--weiss);
   text-align: center;
   white-space: nowrap;
-  color: #e3f2cf;
+  color: var(--tanne);
   align-self: flex-start;
 }
-.te-datum .wt { display: block; font-size: .62rem; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; line-height: 1.2; opacity: .85; }
+.te-datum .wt { display: block; font-size: .62rem; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; line-height: 1.2; color: var(--grau); }
 .te-datum .tg { display: block; font-size: 1.05rem; font-weight: 700; line-height: 1.1; }
 .te-text { flex: 1; min-width: 0; }
 .te-titel {
@@ -694,7 +694,7 @@ input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }
   overflow: hidden;
   overflow-wrap: anywhere;
 }
-.te-wer { display: block; font-size: .82rem; color: #cfe8b0; margin-top: .1rem; }
+.te-wer { display: block; font-size: .82rem; color: #3d6b4f; margin-top: .1rem; }
 
 /* Ansicht eines Termins von der Website */
 .termin-info { margin-top: .4rem; }
