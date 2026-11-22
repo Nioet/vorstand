@@ -277,7 +277,7 @@ async function starteApp() {
   if (!S.ich.name) {
     wechsleSeite("mehr");
     $("#mein-name").focus();
-    meldung("Willkommen! Trag bitte zuerst deinen Namen ein.");
+    meldung("Willkommen! Trag bitte zuerst deinen Vornamen ein.");
   }
   oeffneDirektlink();
 }
@@ -1402,7 +1402,7 @@ $("#form-name").addEventListener("submit", async (e) => {
   S.ich.name = name;
   const p = S.profile.find((x) => x.id === S.userId); if (p) p.name = name;
   zeichneAlles();
-  meldung("Name gespeichert.");
+  meldung("Vorname gespeichert.");
 });
 
 // ------------------------------------------------------------------
