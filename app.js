@@ -104,7 +104,7 @@ const S = {
   projekte: [],
   aboToken: null,
   zeitraum: "kommend",
-  filter: "alle",
+  filter: "meine", // Aufgaben öffnen mit den eigenen
   projektFilter: "",
   projektOffen: null,
   zeigeAbgeschlossene: false,
@@ -369,6 +369,8 @@ $$(".leiste button").forEach((b) =>
       S.projektOffen = null;
       zeichneProjekte();
     }
+    // Beim Öffnen der Aufgaben zuerst die eigenen zeigen
+    if (b.dataset.seite === "aufgaben" && S.seite !== "aufgaben") setzeFilter("meine");
     wechsleSeite(b.dataset.seite);
   }),
 );
@@ -380,13 +382,12 @@ $$("[data-zeitraum]").forEach((b) =>
     zeichneTermine();
   }),
 );
-$$("[data-filter]").forEach((b) =>
-  b.addEventListener("click", () => {
-    S.filter = b.dataset.filter;
-    $$("[data-filter]").forEach((x) => x.classList.toggle("aktiv", x === b));
-    zeichneAufgaben();
-  }),
-);
+function setzeFilter(filter) {
+  S.filter = filter;
+  $$("[data-filter]").forEach((x) => x.classList.toggle("aktiv", x.dataset.filter === filter));
+  if (S.aufgaben) zeichneAufgaben();
+}
+$$("[data-filter]").forEach((b) => b.addEventListener("click", () => setzeFilter(b.dataset.filter)));
 $("#aufgaben-projekt").addEventListener("change", (e) => {
   S.projektFilter = e.target.value;
   zeichneAufgaben();
