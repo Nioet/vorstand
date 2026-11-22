@@ -672,21 +672,20 @@ input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }
   cursor: pointer;
 }
 .termin-extern:active { filter: brightness(1.15); }
-/* kleines Datumsquadrat wie bei den großen Karten, nur mit dem Tag */
+/* kleines Datumsquadrat wie bei den großen Karten */
 .te-datum {
   flex: 0 0 auto;
-  min-width: 2.3rem;
-  padding: .15rem .3rem;
+  min-width: 2.4rem;
+  padding: .1rem .3rem .15rem;
   border-radius: 7px;
   background: rgba(255,255,255,.14);
   text-align: center;
-  font-weight: 700;
-  font-size: 1.05rem;
-  line-height: 1.3;
   white-space: nowrap;
   color: #e3f2cf;
   align-self: flex-start;
 }
+.te-datum .wt { display: block; font-size: .62rem; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; line-height: 1.2; opacity: .85; }
+.te-datum .tg { display: block; font-size: 1.05rem; font-weight: 700; line-height: 1.1; }
 .te-text { flex: 1; min-width: 0; }
 .te-titel {
   display: -webkit-box;
@@ -706,9 +705,9 @@ input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }
 .termin-info .ti-hinweis { color: var(--grau); margin-bottom: .2rem; }
 
 /* Verknüpfte externe Termine im eigenen Termin */
-.etikett.verknuepft { background: #dcebdc; color: var(--tanne); }
 .verknuepft-bereich { margin-top: 1rem; }
 .verknuepft-bereich h3 { font-size: 1rem; margin: 0 0 .5rem; }
 .verknuepft-zeile { display: flex; align-items: center; gap: .4rem; }
 .verknuepft-zeile .termin-extern { margin-bottom: .4rem; }
 .verknuepft-zeile .punkt-weg { margin-bottom: .4rem; }
+#t-uebernehmen { margin-top: .8rem; }

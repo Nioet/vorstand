@@ -495,7 +495,7 @@ function externKarte(t) {
   const punkte = unterpunkteVon(t.id);
   const offen = punkte.filter((a) => a.status !== "erledigt").length;
   return `<button class="termin-extern" data-termin="${t.id}">
-    <span class="te-datum" ${mehrtaegig ? `title="bis ${esc(kurzesDatum(t.bis_datum))}"` : ""}>${alsDatum(t.datum).getDate()}${mehrtaegig ? "+" : ""}</span>
+    <span class="te-datum" ${mehrtaegig ? `title="bis ${esc(kurzesDatum(t.bis_datum))}"` : ""}><span class="wt">${esc(wochentag(t.datum))}</span><span class="tg">${alsDatum(t.datum).getDate()}${mehrtaegig ? "+" : ""}</span></span>
     <span class="te-text">
       <span class="te-titel">${esc(t.titel)}</span>
       ${wer || punkte.length ? `<span class="te-wer">${bloecke([
@@ -512,10 +512,8 @@ function terminKarte(t, { mitMarke = true, mitProjekt = true } = {}) {
   const laeuft = t.datum <= h && (t.bis_datum || t.datum) >= h;
   const punkte = unterpunkteVon(t.id);
   const fertig = punkte.filter((a) => a.status === "erledigt").length;
-  const verkn = verknuepfteVon(t.id);
   const etiketten = [
     mitProjekt ? projektEtikett(t.projekt_id) : "",
-    verkn.length ? `<span class="etikett verknuepft">🔗 ${verkn.length === 1 ? esc(verkn[0].titel.length > 40 ? verkn[0].titel.slice(0, 40) + " …" : verkn[0].titel) : `${verkn.length} externe Termine`}</span>` : "",
   ].join("");
   return `<div class="karte-zeile"><button class="termin${laeuft ? " heute" : ""}" data-termin="${t.id}">${datumBlock(t.datum)}
     <span class="termin-text">
@@ -722,6 +720,7 @@ function oeffneTermin(t = null, vorgabe = {}) {
 
 function externUmschalten() {
   $("#t-wer-bereich").hidden = !$("#t-extern").checked;
+  $("#t-uebernehmen").hidden = !(bearbeiteterTermin?.extern && $("#t-extern").checked && !istVerknuepft(bearbeiteterTermin));
   // Ein Termin, der selbst externe Termine sammelt, wird nicht seinerseits verknüpft
   $("#t-verknuepft").hidden = $("#t-extern").checked || !bearbeiteterTermin || !verknuepfteVon(bearbeiteterTermin.id).length;
 }
@@ -748,6 +747,26 @@ function zeichneVerknuepfte(t) {
     .join("");
   externUmschalten();
 }
+
+// Aus einem externen Termin einen eigenen machen: Daten übernehmen, extern damit verknüpfen
+$("#t-uebernehmen").addEventListener("click", async () => {
+  const x = bearbeiteterTermin;
+  if (!x) return;
+  const notiz = [x.beschreibung, x.link ? `Mehr dazu: ${x.link}` : ""].filter(Boolean).join("\n\n");
+  const { data, error } = await sb.from("termine").insert({
+    titel: x.titel, datum: x.datum, bis_datum: x.bis_datum, start_zeit: x.start_zeit, end_zeit: x.end_zeit,
+    ort: x.ort, beschreibung: notiz || null, projekt_id: $("#t-projekt").value || x.projekt_id || null,
+  }).select("id").single();
+  if (error) { console.error(error); return meldung("Das hat nicht geklappt.", true); }
+  const { error: e2 } = await sb.from("termine")
+    .update({ gehoert_zu: data.id, zustaendig: $("#t-wer").value || null })
+    .eq("id", x.id);
+  if (e2) meldung("Eigener Termin angelegt, aber die Verknüpfung hat nicht geklappt.", true);
+  dT.close("abbrechen");
+  await neuLadenUndZeichnen();
+  const neu = terminVon(data.id);
+  if (neu) { oeffneTermin(neu); meldung("Eigener Termin angelegt und verknüpft – jetzt anpassen und speichern."); }
+});
 
 $("#t-verknuepft-liste").addEventListener("click", async (e) => {
   const oeffnen = e.target.closest("[data-verknuepft-oeffnen]");
