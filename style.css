@@ -562,3 +562,68 @@ input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }
 
 /* Balken auf Terminkarten (Unterpunkte) */
 .termin .fortschritt { height: .45rem; margin-top: .55rem; }
+
+/* ---------- Fensterkopf mit X (bleibt beim Scrollen oben) ---------- */
+.dialog-kopf {
+  position: sticky;
+  top: -1.2rem;               /* gleicht das obere Padding des Fensters aus */
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  margin: -1.2rem -1.2rem .4rem;
+  padding: 1rem 1rem .7rem 1.2rem;
+  background: var(--weiss);
+  border-bottom: 1px solid var(--linie);
+}
+.dialog-kopf h2 { flex: 1; margin: 0; }
+.dialog-zu {
+  flex: 0 0 auto;
+  width: 2.9rem; height: 2.9rem;
+  border-radius: 50%;
+  border: none;
+  background: var(--sand);
+  color: var(--text);
+  font: inherit;
+  font-size: 1.3rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.dialog-zu:focus:not(:focus-visible) { outline: none; }
+
+/* ---------- Fortschritt als ein Element: Text auf dem Balken ---------- */
+.fortschritt-text {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 1.9rem;
+  margin-top: .55rem;
+  border-radius: 999px;
+  background: #e8e3d8;
+  overflow: hidden;
+}
+.fortschritt-text > .fuellung {
+  position: absolute; inset: 0 auto 0 0;
+  background: #c4e08a;
+}
+.fortschritt-text.fertig > .fuellung { background: var(--grashalm); }
+.fortschritt-text > .label {
+  position: relative;
+  display: block;
+  padding: 0 .8rem;
+  line-height: 1.9rem;
+  font-size: .85rem;
+  font-weight: 700;
+  color: var(--tanne);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Fortschritt über die ganze Kartenbreite (unter Datum und Text, bis unter das Plus) */
+.termin { flex-wrap: wrap; column-gap: .9rem; row-gap: 0; }
+.termin > .fortschritt-text { flex: 0 0 100%; }
+.karte-zeile > .termin > .fortschritt-text { flex-basis: calc(100% + 2.8rem); margin-right: -2.8rem; }
+.karte-zeile > .projekt-karte > .fortschritt-text { width: calc(100% + 2.7rem); margin-right: -2.7rem; }

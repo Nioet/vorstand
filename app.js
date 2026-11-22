@@ -25,11 +25,11 @@ const uhr = (t) => (t ? t.slice(0, 5) : "");
 
 const fmtWochentag = new Intl.DateTimeFormat("de-DE", { weekday: "short" });
 const fmtMonat = new Intl.DateTimeFormat("de-DE", { month: "long", year: "numeric" });
-const fmtLang = new Intl.DateTimeFormat("de-DE", { weekday: "short", day: "numeric", month: "long" });
-const fmtKurz = new Intl.DateTimeFormat("de-DE", { day: "numeric", month: "short" });
+const fmtZahl = new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit" });
 const wochentag = (s) => fmtWochentag.format(alsDatum(s)).replace(".", "");
-const langesDatum = (s) => fmtLang.format(alsDatum(s));
-const kurzesDatum = (s) => fmtKurz.format(alsDatum(s));
+// Platzsparend: "Fr., 28.05.27" bzw. "28.05.27"
+const kurzesDatum = (s) => fmtZahl.format(alsDatum(s));
+const langesDatum = (s) => `${wochentag(s)}., ${kurzesDatum(s)}`;
 
 const plusTage = (s, n) => { const d = alsDatum(s); d.setDate(d.getDate() + n); return isoTag(d); };
 const tageZwischen = (von, bis) => {
@@ -56,6 +56,15 @@ function wiederOeffnen(dialog) {
   dialog.returnValue = "";
   dialog.showModal();
 }
+
+// Auf Handys nicht von selbst ins Textfeld springen (sonst klappt die Tastatur auf)
+const istTouch = () => matchMedia("(pointer: coarse)").matches;
+
+// X oben rechts schließt jedes Fenster, ohne zu speichern
+document.addEventListener("click", (e) => {
+  const zu = e.target.closest("[data-schliessen]");
+  if (zu) zu.closest("dialog").close("abbrechen");
+});
 
 function zeige(id) {
   for (const x of ["laden", "anmeldung", "app"]) $("#" + x).hidden = x !== id;
@@ -460,7 +469,6 @@ function terminKarte(t, { mitMarke = true, mitProjekt = true } = {}) {
   const punkte = unterpunkteVon(t.id);
   const fertig = punkte.filter((a) => a.status === "erledigt").length;
   const etiketten = [
-    punkte.length ? `<span class="etikett${fertig === punkte.length ? " fertig" : ""}">☑ ${fertig} von ${punkte.length} erledigt</span>` : "",
     mitProjekt ? projektEtikett(t.projekt_id) : "",
   ].join("");
   return `<div class="karte-zeile"><button class="termin${laeuft ? " heute" : ""}" data-termin="${t.id}">${datumBlock(t.datum)}
@@ -470,8 +478,7 @@ function terminKarte(t, { mitMarke = true, mitProjekt = true } = {}) {
       ${t.ort ? `<span class="ort"><br>📍 ${esc(t.ort)}</span>` : ""}
       ${t.beschreibung ? `<span class="notiz"><br>${esc(t.beschreibung.length > 140 ? t.beschreibung.slice(0, 140) + " …" : t.beschreibung)}</span>` : ""}
       ${etiketten ? `<span class="etiketten">${etiketten}</span>` : ""}
-      ${punkte.length ? balken(fertig / punkte.length) : ""}
-    </span></button>
+    </span>${punkte.length ? fortschritt(fertig, punkte.length) : ""}</button>
     <button class="dupl-knopf" data-dupl-termin="${t.id}" aria-label="Termin „${esc(t.titel)}“ duplizieren" title="Duplizieren">＋</button></div>`;
 }
 
@@ -644,7 +651,7 @@ function oeffneTermin(t = null, vorgabe = {}) {
   zeichneUnterpunkte();
   dT.returnValue = "";
   dT.showModal();
-  if (!t) $("#t-titel").focus();
+  if (!t && !istTouch()) $("#t-titel").focus();
 }
 
 function zeichneUnterpunkte() {
@@ -963,7 +970,7 @@ function oeffneAufgabe(a = null, vorgabe = {}) {
   $("#a-loeschen").hidden = !a;
   dA.returnValue = "";
   dA.showModal();
-  if (!a) $("#a-titel").focus();
+  if (!a && !istTouch()) $("#a-titel").focus();
 }
 
 dA.addEventListener("close", async () => {
@@ -1023,6 +1030,13 @@ function projektZahlen(p) {
 }
 
 const balken = (anteil) => `<span class="fortschritt" aria-hidden="true"><span style="width:${Math.round(anteil * 100)}%"></span></span>`;
+// Balken mit Beschriftung darauf, über die volle Breite
+function fortschritt(erledigt, gesamt, wort = "erledigt") {
+  const anteil = gesamt ? erledigt / gesamt : 0;
+  return `<span class="fortschritt-text${erledigt === gesamt ? " fertig" : ""}" role="img" aria-label="${erledigt} von ${gesamt} ${wort}">
+    <span class="fuellung" style="width:${Math.round(anteil * 100)}%"></span>
+    <span class="label">☑ ${erledigt} von ${gesamt} ${wort}</span></span>`;
+}
 
 function zeichneProjekte() {
   const detail = $("#projekt-detail");
@@ -1038,7 +1052,6 @@ function zeichneProjekte() {
       const wer = nameVon(x.zustaendig);
       const meta = [
         wer ? `👤 ${esc(wer)}${x.zustaendig === S.userId ? " (ich)" : ""}` : "",
-        z.freie.length ? `✅ ${z.freieOffen} ${z.freieOffen === 1 ? "Aufgabe" : "Aufgaben"} offen` : "",
         z.naechster
           ? `📅 nächster Termin: ${esc(langesDatum(z.naechster.datum))}` +
             (z.punkteNaechster.length ? ` · ☑ ${z.punkteNaechsterErledigt} von ${z.punkteNaechster.length}` : "")
@@ -1050,7 +1063,7 @@ function zeichneProjekte() {
       return `<div class="karte-zeile"><button class="projekt-karte${klasse}" data-projekt="${x.id}">
         <strong>📁 ${esc(x.name)}</strong>
         ${x.beschreibung ? `<span class="beschreibung">${esc(x.beschreibung.length > 120 ? x.beschreibung.slice(0, 120) + " …" : x.beschreibung)}</span>` : ""}
-        ${z.freie.length ? balken(z.freieErledigt / z.freie.length) : ""}
+        ${z.freie.length ? fortschritt(z.freieErledigt, z.freie.length, z.freie.length === 1 ? "Aufgabe erledigt" : "Aufgaben erledigt") : ""}
         <span class="meta">${meta}</span>
       </button>
       <button class="dupl-knopf" data-dupl-projekt="${x.id}" aria-label="Projekt „${esc(x.name)}“ duplizieren" title="Duplizieren">＋</button></div>`;
@@ -1102,7 +1115,7 @@ function zeichneProjekte() {
       <h2 style="padding-right:3.2rem">📁 ${esc(p.name)}${p.abgeschlossen ? ' <span class="marke">abgeschlossen</span>' : p.in_planung ? ' <span class="marke planung">in Planung</span>' : ""}</h2>
       ${p.beschreibung ? `<p>${esc(p.beschreibung)}</p>` : ""}
       <p>👤 ${p.zustaendig ? `Zuständig: <strong>${esc(nameVon(p.zustaendig) || "?")}</strong>${p.zustaendig === S.userId ? " (ich)" : ""}` : "Noch niemand zuständig"}</p>
-      ${z.freie.length ? `${balken(z.freieErledigt / z.freie.length)}<p class="klein">${z.freieErledigt} von ${z.freie.length} Aufgaben erledigt</p>` : ""}
+      ${z.freie.length ? `<p>${fortschritt(z.freieErledigt, z.freie.length, z.freie.length === 1 ? "Aufgabe erledigt" : "Aufgaben erledigt")}</p>` : ""}
       ${p.in_planung && !p.abgeschlossen ? `<button class="knopf haupt breit" data-aktion="projekt-starten">▶ Projekt starten</button>` : ""}
       <button class="knopf breit" data-aktion="projekt-bearbeiten">Projekt bearbeiten</button>
     </div>
@@ -1158,7 +1171,7 @@ function oeffneProjekt(p = null, vorgabe = {}) {
   $("#p-loeschen").hidden = !p;
   dP.returnValue = "";
   dP.showModal();
-  if (!p) $("#p-name").focus();
+  if (!p && !istTouch()) $("#p-name").focus();
 }
 
 dP.addEventListener("close", async () => {
