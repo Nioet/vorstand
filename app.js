@@ -915,12 +915,26 @@ function terminAuswahl(gewaehlt) {
   $("#a-termin").value = gewaehlt || "";
 }
 
-function projektHinweisAktualisieren() {
-  const mitTermin = !!$("#a-termin").value;
+// Unterpunkte haben kein eigenes Projekt: Es gilt das Projekt ihres Termins.
+let letzterTermin = null;
+function projektAnzeigeAktualisieren() {
   const t = terminVon($("#a-termin").value);
-  $("#a-projekt-hinweis").hidden = !(mitTermin && t?.projekt_id);
+  $("#a-projekt-bereich").hidden = !!t;
+  const info = $("#a-projekt-vom-termin");
+  info.hidden = !t;
+  if (t) {
+    const p = projektVon(t.projekt_id);
+    info.innerHTML = p
+      ? `📁 Projekt: <strong>${esc(p.name)}</strong> (vom Termin)`
+      : "Der Termin gehört zu keinem Projekt.";
+  } else if (letzterTermin) {
+    // Vom Termin gelöst: bisheriges Projekt übernehmen, damit nichts aus dem Projekt fällt
+    const vorher = terminVon(letzterTermin)?.projekt_id;
+    if (vorher && !$("#a-projekt").value) projektOptionen($("#a-projekt"), vorher);
+  }
+  letzterTermin = t ? t.id : null;
 }
-$("#a-termin").addEventListener("change", projektHinweisAktualisieren);
+$("#a-termin").addEventListener("change", projektAnzeigeAktualisieren);
 
 // Uhrzeit nur zusammen mit einem Datum
 function zeitFeldUmschalten() {
@@ -943,7 +957,8 @@ function oeffneAufgabe(a = null, vorgabe = {}) {
   $("#a-notiz").value = a?.beschreibung || "";
   terminAuswahl(a ? a.termin_id : vorgabe.termin_id);
   projektOptionen($("#a-projekt"), a ? a.projekt_id : vorgabe.projekt_id);
-  projektHinweisAktualisieren();
+  letzterTermin = null;
+  projektAnzeigeAktualisieren();
   $("#a-loeschen").hidden = !a;
   dA.returnValue = "";
   dA.showModal();
@@ -960,7 +975,8 @@ dA.addEventListener("close", async () => {
     status: $("#a-status").value,
     beschreibung: leer($("#a-notiz").value),
     termin_id: $("#a-termin").value || null,
-    projekt_id: $("#a-projekt").value || null,
+    // Mit Termin gilt dessen Projekt (die Datenbank erzwingt das ebenfalls)
+    projekt_id: $("#a-termin").value ? null : $("#a-projekt").value || null,
   };
   const anfrage = bearbeiteteAufgabe
     ? sb.from("aufgaben").update(daten).eq("id", bearbeiteteAufgabe.id)
