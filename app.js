@@ -29,7 +29,9 @@ const fmtZahl = new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-dig
 const wochentag = (s) => fmtWochentag.format(alsDatum(s)).replace(".", "");
 // Platzsparend: "Fr., 28.05.27" bzw. "28.05.27"
 const kurzesDatum = (s) => fmtZahl.format(alsDatum(s));
-const langesDatum = (s) => `${wochentag(s)}., ${kurzesDatum(s)}`;
+const langesDatum = (s) => `${wochentag(s)}.,\u00a0${kurzesDatum(s)}`;
+// Infoblöcke, die nur als Ganzes umbrechen: "👤 Almut · 📅 nächster Termin: Sa., 28.11.26"
+const bloecke = (teile) => teile.filter(Boolean).map((t) => `<span class="block">${t}</span>`).join(" · ");
 
 const plusTage = (s, n) => { const d = alsDatum(s); d.setDate(d.getDate() + n); return isoTag(d); };
 const tageZwischen = (von, bis) => {
@@ -473,10 +475,11 @@ function terminKarte(t, { mitMarke = true, mitProjekt = true } = {}) {
   ].join("");
   return `<div class="karte-zeile"><button class="termin${laeuft ? " heute" : ""}" data-termin="${t.id}">${datumBlock(t.datum)}
     <span class="termin-text">
+      <span class="plus-platz" aria-hidden="true"></span>
       <strong>${esc(t.titel)}${mitMarke ? relMarke(t.datum) : ""}</strong>
-      <span class="zeit">${esc(zeitText(t))}</span>
-      ${t.ort ? `<span class="ort"><br>📍 ${esc(t.ort)}</span>` : ""}
-      ${t.beschreibung ? `<span class="notiz"><br>${esc(t.beschreibung.length > 140 ? t.beschreibung.slice(0, 140) + " …" : t.beschreibung)}</span>` : ""}
+      <span class="zeit zeile-block">${esc(zeitText(t))}</span>
+      ${t.ort ? `<span class="ort zeile-block">📍 ${esc(t.ort)}</span>` : ""}
+      ${t.beschreibung ? `<span class="notiz zeile-block">${esc(t.beschreibung.length > 140 ? t.beschreibung.slice(0, 140) + " …" : t.beschreibung)}</span>` : ""}
       ${etiketten ? `<span class="etiketten">${etiketten}</span>` : ""}
     </span>${punkte.length ? fortschritt(fertig, punkte.length) : ""}</button>
     <button class="dupl-knopf" data-dupl-termin="${t.id}" aria-label="Termin „${esc(t.titel)}“ duplizieren" title="Duplizieren">＋</button></div>`;
@@ -484,7 +487,7 @@ function terminKarte(t, { mitMarke = true, mitProjekt = true } = {}) {
 
 function fristText(a) {
   if (!a.faellig) return "";
-  const zeit = a.faellig_zeit ? `${uhr(a.faellig_zeit)} Uhr` : "";
+  const zeit = a.faellig_zeit ? `${uhr(a.faellig_zeit)}\u00a0Uhr` : "";
   if (a.status === "erledigt") return `📅 war bis ${esc(langesDatum(a.faellig))}${zeit ? ", " + zeit : ""}`;
   const n = tageBis(a.faellig);
   const jetzt = new Date();
@@ -526,7 +529,7 @@ function aufgabeHtml(a, { mitProjekt = true, liste = null } = {}) {
   return `<article class="aufgabe${a.status === "erledigt" ? " ist-erledigt" : ""}" data-id="${a.id}"${liste ? ` data-liste="${liste}"` : ""}>
     ${sortierbar ? "" : `<button class="dupl-knopf" data-tun="duplizieren" aria-label="„${esc(a.titel)}“ duplizieren" title="Duplizieren">＋</button>`}
     <button class="titel-knopf" data-tun="bearbeiten">${esc(a.titel)}</button>
-    <div class="meta">👤 ${esc(wer ? (istMeine ? `${wer} (ich)` : wer) : "noch niemand")}${frist ? " · " + frist : ""}</div>
+    <div class="meta">${bloecke([`👤 ${esc(wer ? (istMeine ? `${wer} (ich)` : wer) : "noch niemand")}`, frist])}</div>
     ${etiketten ? `<div class="etiketten">${etiketten}</div>` : ""}
     <div class="knoepfe">${knoepfe}</div>
   </article>`;
@@ -671,7 +674,7 @@ function zeichneUnterpunkte() {
   liste.innerHTML = punkte
     .map((a, i) => {
       const wer = nameVon(a.zustaendig);
-      const meta = [wer ? `👤 ${esc(wer)}` : "👤 noch niemand", a.faellig ? fristText(a) : ""].filter(Boolean).join(" · ");
+      const meta = bloecke([wer ? `👤 ${esc(wer)}` : "👤 noch niemand", a.faellig ? fristText(a) : ""]);
       const pfeile = punkteSortieren
         ? `<button type="button" class="punkt-pfeil" data-punkt-hoch="${a.id}" aria-label="Nach oben" ${i === 0 ? "disabled" : ""}>↑</button>
            <button type="button" class="punkt-pfeil" data-punkt-runter="${a.id}" aria-label="Nach unten" ${i === punkte.length - 1 ? "disabled" : ""}>↓</button>`
@@ -1050,17 +1053,16 @@ function zeichneProjekte() {
     const karte = (x) => {
       const z = projektZahlen(x);
       const wer = nameVon(x.zustaendig);
-      const meta = [
+      const meta = bloecke([
         wer ? `👤 ${esc(wer)}${x.zustaendig === S.userId ? " (ich)" : ""}` : "",
-        z.naechster
-          ? `📅 nächster Termin: ${esc(langesDatum(z.naechster.datum))}` +
-            (z.punkteNaechster.length ? ` · ☑ ${z.punkteNaechsterErledigt} von ${z.punkteNaechster.length}` : "")
-          : "",
+        z.naechster ? `📅 nächster Termin: ${esc(langesDatum(z.naechster.datum))}` : "",
+        z.naechster && z.punkteNaechster.length ? `☑ ${z.punkteNaechsterErledigt} von ${z.punkteNaechster.length}` : "",
         !z.freie.length && !z.termine.length ? "noch leer" : "",
         x.abgeschlossen ? "✔ abgeschlossen" : "",
-      ].filter(Boolean).join(" · ");
+      ]);
       const klasse = x.abgeschlossen ? " ist-abgeschlossen" : x.in_planung ? " ist-planung" : "";
       return `<div class="karte-zeile"><button class="projekt-karte${klasse}" data-projekt="${x.id}">
+        <span class="plus-platz" aria-hidden="true"></span>
         <strong>📁 ${esc(x.name)}</strong>
         ${x.beschreibung ? `<span class="beschreibung">${esc(x.beschreibung.length > 120 ? x.beschreibung.slice(0, 120) + " …" : x.beschreibung)}</span>` : ""}
         ${z.freie.length ? fortschritt(z.freieErledigt, z.freie.length, z.freie.length === 1 ? "Aufgabe erledigt" : "Aufgaben erledigt") : ""}

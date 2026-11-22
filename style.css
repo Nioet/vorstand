@@ -443,7 +443,11 @@ dialog details summary { cursor: pointer; color: var(--tanne); font-weight: 600;
 
 /* ---------- Duplizieren-Knopf (＋) ---------- */
 .karte-zeile { position: relative; }
-.karte-zeile > .termin, .karte-zeile > .projekt-karte { padding-right: 3.8rem; }
+/* Unsichtbarer Platzhalter in Größe des Plus: Text fließt daran vorbei und
+   nutzt darunter die volle Breite */
+.plus-platz { display: none; }
+.karte-zeile .plus-platz { display: block; float: right; width: 2.6rem; height: 2.6rem; margin-left: .4rem; }
+.karte-zeile > .projekt-karte .plus-platz { width: 2.5rem; height: 2.4rem; }
 .aufgabe { position: relative; }
 .aufgabe .titel-knopf { padding-right: 3.2rem; }
 .dupl-knopf {
@@ -625,5 +629,15 @@ input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }
 /* Fortschritt über die ganze Kartenbreite (unter Datum und Text, bis unter das Plus) */
 .termin { flex-wrap: wrap; column-gap: .9rem; row-gap: 0; }
 .termin > .fortschritt-text { flex: 0 0 100%; }
-.karte-zeile > .termin > .fortschritt-text { flex-basis: calc(100% + 2.8rem); margin-right: -2.8rem; }
-.karte-zeile > .projekt-karte > .fortschritt-text { width: calc(100% + 2.7rem); margin-right: -2.7rem; }
+
+
+/* Zeilen auf Terminkarten */
+.termin-text .zeile-block { display: block; }
+.termin-text .ort, .termin-text .notiz { margin-top: .1rem; }
+/* Infoblöcke brechen nur als Ganzes um */
+.block { display: inline-block; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+/* Mehr Luft zwischen Etiketten und Knöpfen auf Aufgabenkarten */
+.aufgabe .etiketten { margin-bottom: .2rem; }
+.aufgabe .knoepfe { margin-top: .75rem; }
+/* Balken auf der Projektkarte unter den Plus-Platzhalter schieben, damit er die volle Breite hat */
+.projekt-karte > .fortschritt-text { clear: right; }
