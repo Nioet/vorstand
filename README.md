@@ -42,7 +42,7 @@ Bereits erledigt: Supabase-Projekt **„Vorstand“** (Organisation „Grüne BK
 
 ### 2. Datenbank einrichten
 1. Im Dashboard links **SQL Editor** → **New query**.
-2. Den kompletten Inhalt von `supabase/migrations/20261121000000_vorstand.sql` einfügen → **Run**, danach genauso `20261121020000_projekte_unterpunkte.sql`, `20261121030000_duplizieren.sql` `20261121040000_reihenfolge.sql` `20261121050000_projekt_zustaendig.sql` `20261121060000_projekte_in_planung.sql` `20261121070000_uhrzeit_fristen.sql` und `20261122010000_unterpunkte_erben_projekt.sql`.
+2. Den kompletten Inhalt von `supabase/migrations/20261121000000_vorstand.sql` einfügen → **Run**, danach genauso `20261121020000_projekte_unterpunkte.sql`, `20261121030000_duplizieren.sql` `20261121040000_reihenfolge.sql` `20261121050000_projekt_zustaendig.sql` `20261121060000_projekte_in_planung.sql` `20261121070000_uhrzeit_fristen.sql` `20261122010000_unterpunkte_erben_projekt.sql` und `20261122020000_externe_zustaendige.sql`.
    Das Skript kann gefahrlos mehrfach ausgeführt werden.
 
 ### 3. Anmeldung einstellen

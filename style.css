@@ -649,3 +649,6 @@ input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }
 .aufgabe-text { flex: 1; min-width: 0; }
 .aufgabe-kopf > .dupl-knopf { position: static; flex: 0 0 auto; margin: -.35rem -.45rem 0 0; }
 .aufgabe .meta { margin-top: .3rem; }
+
+/* Externe Zuständige: Freitextfeld unter der Personenauswahl */
+#a-extern { margin-top: .5rem; }

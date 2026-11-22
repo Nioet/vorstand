@@ -265,6 +265,7 @@ async function antworte(req: Request): Promise<Response> {
     termin_id: string | null;
     projekt_id: string | null;
     zustaendig: string | null;
+    zustaendig_extern: string | null;
   };
   const [termineRoh, aufgabenRoh, projekte, profile] = await Promise.all([
     lies<TerminRoh[]>(
@@ -273,7 +274,7 @@ async function antworte(req: Request): Promise<Response> {
     ),
     // offene Aufgaben + alle Unterpunkte (auch erledigte, für die Checkliste)
     lies<AufgabeRoh[]>(
-      `aufgaben?select=id,titel,beschreibung,faellig,faellig_zeit,status,updated_at,created_at,termin_id,projekt_id,zustaendig` +
+      `aufgaben?select=id,titel,beschreibung,faellig,faellig_zeit,status,updated_at,created_at,termin_id,projekt_id,zustaendig,zustaendig_extern` +
         `&or=(status.neq.erledigt,termin_id.not.is.null)&order=created_at`,
     ),
     lies<{ id: string; name: string }[]>("projekte?select=id,name"),
@@ -282,7 +283,8 @@ async function antworte(req: Request): Promise<Response> {
   const namen = anzeigeNamen(profile);
   const projektName = new Map(projekte.map((p) => [p.id, p.name]));
   const terminById = new Map(termineRoh.map((t) => [t.id, t]));
-  const werVon = (a: AufgabeRoh) => (a.zustaendig ? namen.get(a.zustaendig) ?? null : null);
+  const werVon = (a: AufgabeRoh) =>
+    a.zustaendig ? namen.get(a.zustaendig) ?? null : a.zustaendig_extern ? `${a.zustaendig_extern} (extern)` : null;
 
   const termine: Termin[] = termineRoh.map((t) => ({
     ...t,

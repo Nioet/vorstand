@@ -517,8 +517,13 @@ function fristText(a) {
   return `📅 bis ${esc(langesDatum(a.faellig))}${zeit ? ", " + zeit : ""}`;
 }
 
+// Zuständig: Vorstandsmitglied oder externe Person (Freitext)
+const werVon = (a) =>
+  a.zustaendig ? nameVon(a.zustaendig) : a.zustaendig_extern ? `${a.zustaendig_extern} (extern)` : "";
+const istVergeben = (a) => !!(a.zustaendig || a.zustaendig_extern);
+
 function aufgabeHtml(a, { mitProjekt = true, liste = null } = {}) {
-  const wer = nameVon(a.zustaendig);
+  const wer = werVon(a);
   const istMeine = a.zustaendig === S.userId;
   const sortierbar = S.sortieren && liste && a.status !== "erledigt";
   let knoepfe = "";
@@ -528,7 +533,7 @@ function aufgabeHtml(a, { mitProjekt = true, liste = null } = {}) {
     knoepfe = `<button class="knopf klein pfeil" data-tun="hoch" aria-label="Nach oben" ${i <= 0 ? "disabled" : ""}>↑ Hoch</button>
                <button class="knopf klein pfeil" data-tun="runter" aria-label="Nach unten" ${i === ids.length - 1 ? "disabled" : ""}>↓ Runter</button>`;
   } else if (a.status === "offen") {
-    knoepfe = !a.zustaendig
+    knoepfe = !istVergeben(a)
       ? `<button class="knopf klein" data-tun="nehmen">🙋 Mach ich</button>`
       : `<button class="knopf klein" data-tun="anfangen">▶ Anfangen</button>`;
     knoepfe += `<button class="knopf klein haupt" data-tun="erledigt">✓ Erledigt</button>`;
@@ -598,7 +603,7 @@ function zeichneTermine() {
       html += terminKarte(e.t, { mitMarke: kommend });
     } else {
       const a = e.a;
-      const wer = nameVon(a.zustaendig);
+      const wer = werVon(a);
       const proj = projektEtikett(projektIdVonAufgabe(a));
       html += `<button class="termin frist" data-aufgabe="${a.id}">${datumBlock(a.faellig)}
         <span class="termin-text">
@@ -695,7 +700,7 @@ function zeichneUnterpunkte() {
   const punkte = unterpunkteVon(bearbeiteterTermin.id);
   liste.innerHTML = punkte
     .map((a, i) => {
-      const wer = nameVon(a.zustaendig);
+      const wer = werVon(a);
       const meta = bloecke([wer ? `👤 ${esc(wer)}` : "", a.faellig ? fristText(a) : ""]);
       const pfeile = punkteSortieren
         ? `<button type="button" class="punkt-pfeil" data-punkt-hoch="${a.id}" aria-label="Nach oben" ${i === 0 ? "disabled" : ""}>↑</button>
@@ -848,7 +853,7 @@ function zeichneAufgaben() {
 
   let liste = S.aufgaben;
   if (S.filter === "meine") liste = liste.filter((a) => a.zustaendig === S.userId);
-  if (S.filter === "niemand") liste = liste.filter((a) => !a.zustaendig);
+  if (S.filter === "niemand") liste = liste.filter((a) => !istVergeben(a));
   if (S.projektFilter) liste = liste.filter((a) => projektIdVonAufgabe(a) === S.projektFilter);
 
   let html = "";
@@ -929,14 +934,33 @@ async function alleNachDatum() {
 const dA = $("#dialog-aufgabe");
 let bearbeiteteAufgabe = null;
 
-function personenOptionen(select, gewaehlt) {
+function personenOptionen(select, gewaehlt, mitExtern = false) {
   const aktive = S.profile.filter((p) => p.aktiv || p.id === gewaehlt);
   select.innerHTML =
     `<option value="">— noch niemand —</option>` +
-    aktive.map((p) => `<option value="${p.id}">${esc(nameVon(p.id))}${p.id === S.userId ? " (ich)" : ""}</option>`).join("");
+    aktive.map((p) => `<option value="${p.id}">${esc(nameVon(p.id))}${p.id === S.userId ? " (ich)" : ""}</option>`).join("") +
+    (mitExtern ? `<option value="extern">✏️ Jemand anderes …</option>` : "");
   select.value = gewaehlt || "";
 }
-const personenAuswahl = (gewaehlt) => personenOptionen($("#a-wer"), gewaehlt);
+
+function externFeldUmschalten() {
+  const extern = $("#a-wer").value === "extern";
+  $("#a-extern").hidden = !extern;
+  if (!extern) $("#a-extern").value = "";
+}
+$("#a-wer").addEventListener("change", () => {
+  externFeldUmschalten();
+  if ($("#a-wer").value === "extern") $("#a-extern").focus();
+});
+
+function personenAuswahl(a) {
+  personenOptionen($("#a-wer"), a?.zustaendig_extern ? "extern" : a?.zustaendig, true);
+  // Vorschläge: externe Namen, die schon einmal vorkamen
+  const bekannt = [...new Set(S.aufgaben.map((x) => x.zustaendig_extern).filter(Boolean))].sort((x, y) => x.localeCompare(y, "de"));
+  $("#a-extern-liste").innerHTML = bekannt.map((n) => `<option value="${esc(n)}">`).join("");
+  externFeldUmschalten();
+  $("#a-extern").value = a?.zustaendig_extern || "";
+}
 
 function terminAuswahl(gewaehlt) {
   // Kommende Termine und die der letzten 30 Tage, dazu der aktuell gewählte
@@ -982,7 +1006,7 @@ function oeffneAufgabe(a = null, vorgabe = {}) {
   bearbeiteteAufgabe = a;
   $("#aufgabe-ueberschrift").textContent = a ? (a.termin_id ? "Unterpunkt bearbeiten" : "Aufgabe bearbeiten") : "Neue Aufgabe";
   $("#a-titel").value = a?.titel || "";
-  personenAuswahl(a?.zustaendig);
+  personenAuswahl(a);
   $("#a-faellig").value = a?.faellig || "";
   $("#a-zeit").value = uhr(a?.faellig_zeit);
   zeitFeldUmschalten();
@@ -1002,7 +1026,8 @@ dA.addEventListener("close", async () => {
   if (dA.returnValue !== "speichern") return;
   const daten = {
     titel: $("#a-titel").value.trim(),
-    zustaendig: $("#a-wer").value || null,
+    zustaendig: ($("#a-wer").value !== "extern" && $("#a-wer").value) || null,
+    zustaendig_extern: $("#a-wer").value === "extern" ? leer($("#a-extern").value) : null,
     faellig: $("#a-faellig").value || null,
     faellig_zeit: ($("#a-faellig").value && $("#a-zeit").value) || null,
     status: $("#a-status").value,
@@ -1358,6 +1383,7 @@ async function dupliziereAufgabe(a) {
       titel: a.titel,
       beschreibung: a.beschreibung,
       zustaendig: a.zustaendig,
+      zustaendig_extern: a.zustaendig_extern,
       faellig: a.faellig,
       faellig_zeit: a.faellig_zeit,
       termin_id: a.termin_id,
