@@ -714,3 +714,14 @@ input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }
 .verknuepft-zeile .termin-extern { margin-bottom: .4rem; }
 .verknuepft-zeile .punkt-weg { margin-bottom: .4rem; }
 #t-uebernehmen { margin-top: .8rem; }
+
+/* ---------- Rückmeldungen ---------- */
+.rueck-bereich { margin: .6rem 0 .4rem; padding: .7rem .8rem; background: var(--sand); border-radius: 12px; }
+.rueck-knoepfe { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.rueck-knoepfe .knopf { padding: .55rem .4rem; white-space: nowrap; background: var(--weiss); color: var(--tanne); border: 1.5px solid #c9d6c9; font-weight: 600; }
+.rueck-knoepfe .knopf[data-rueck="ja"].gewaehlt { background: var(--tanne); color: var(--weiss); border-color: var(--tanne); }
+.rueck-knoepfe .knopf[data-rueck="nein"].gewaehlt { background: #8a2f2f; color: var(--weiss); border-color: #8a2f2f; }
+.rueck-liste { font-size: .9rem; margin-top: .5rem; }
+.rueck-liste p { margin: .25rem 0; }
+.rueck-zeichen { display: inline-block; width: 1.1em; text-align: center; font-weight: 700; }
+.termin .rueck { color: var(--grau); }

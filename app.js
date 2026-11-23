@@ -102,6 +102,7 @@ const S = {
   termine: [],
   aufgaben: [],
   projekte: [],
+  rueckmeldungen: [],
   aboToken: null,
   zeitraum: "kommend",
   filter: "meine", // Aufgaben öffnen mit den eigenen
@@ -250,11 +251,15 @@ async function ladeProfile() {
 }
 
 async function ladeInhalte() {
-  const [t, a, p] = await Promise.all([
+  const [t, a, p, r] = await Promise.all([
     sb.from("termine").select("*").order("datum").order("start_zeit", { nullsFirst: true }),
     sb.from("aufgaben").select("*").order("position", { nullsFirst: false }).order("created_at"),
     sb.from("projekte").select("*").order("name"),
+    sb.from("rueckmeldungen").select("termin_id,person,dabei"),
   ]);
+  // Rückmeldungen sind Zusatz: Fehlt die Tabelle o. Ä., läuft der Rest trotzdem
+  S.rueckmeldungen = r.error ? [] : r.data;
+  if (r.error) console.error(r.error);
   if (t.error) throw t.error;
   if (a.error) throw a.error;
   if (p.error) throw p.error;
@@ -339,6 +344,7 @@ function starteLive() {
     .on("postgres_changes", { event: "*", schema: "public", table: "termine" }, nachladen)
     .on("postgres_changes", { event: "*", schema: "public", table: "aufgaben" }, nachladen)
     .on("postgres_changes", { event: "*", schema: "public", table: "projekte" }, nachladen)
+    .on("postgres_changes", { event: "*", schema: "public", table: "rueckmeldungen" }, nachladen)
     .subscribe();
 }
 function stoppeLive() {
@@ -495,20 +501,38 @@ function externKarte(t) {
   const mehrtaegig = t.bis_datum && t.bis_datum !== t.datum;
   const punkte = unterpunkteVon(t.id);
   const offen = punkte.filter((a) => a.status !== "erledigt").length;
+  const absagen = namenListe(rueckVon(t.id).nicht);
   return `<button class="termin-extern${t.zustaendig ? " uebernommen" : ""}" data-termin="${t.id}">
     <span class="te-datum" ${mehrtaegig ? `title="bis ${esc(kurzesDatum(t.bis_datum))}"` : ""}><span class="wt">${esc(wochentag(t.datum))}</span><span class="tg">${alsDatum(t.datum).getDate()}${mehrtaegig ? "+" : ""}</span></span>
     <span class="te-text">
       <span class="te-titel">${esc(t.titel)}</span>
-      ${wer || punkte.length ? `<span class="te-wer">${bloecke([
+      ${wer || punkte.length || absagen.length ? `<span class="te-wer">${bloecke([
         wer ? `👤 ${esc(wer)}${t.zustaendig === S.userId ? " (ich)" : ""}` : "",
+        absagen.length ? `✗ ${esc(absagen.join(", "))}` : "",
         punkte.length ? `☑ ${punkte.length - offen} von ${punkte.length}` : "",
       ])}</span>` : ""}
     </span>
   </button>`;
 }
 
+// Rückmeldungen: wer ist dabei, wer kann nicht
+function rueckVon(terminId) {
+  const zeilen = (S.rueckmeldungen || []).filter((r) => r.termin_id === terminId);
+  return {
+    dabei: zeilen.filter((r) => r.dabei).map((r) => r.person),
+    nicht: zeilen.filter((r) => !r.dabei).map((r) => r.person),
+    meine: zeilen.find((r) => r.person === S.userId) || null,
+  };
+}
+const namenListe = (ids) => ids.map((id) => nameVon(id) + (id === S.userId ? " (ich)" : "")).sort((x, y) => x.localeCompare(y, "de"));
+
 function terminKarte(t, { mitMarke = true, mitProjekt = true } = {}) {
   if (t.extern) return externKarte(t);
+  const rueck = rueckVon(t.id);
+  const rueckText = bloecke([
+    rueck.dabei.length ? `✓ ${rueck.dabei.length}` : "",
+    rueck.nicht.length ? `✗ ${rueck.nicht.length}` : "",
+  ]);
   const h = heute();
   const laeuft = t.datum <= h && (t.bis_datum || t.datum) >= h;
   const punkte = unterpunkteVon(t.id);
@@ -522,6 +546,7 @@ function terminKarte(t, { mitMarke = true, mitProjekt = true } = {}) {
       <strong>${esc(t.titel)}${mitMarke ? relMarke(t.datum) : ""}</strong>
       <span class="zeit zeile-block">${esc(zeitText(t))}</span>
       ${t.ort ? `<span class="ort zeile-block">📍 ${esc(t.ort)}</span>` : ""}
+      ${rueckText ? `<span class="rueck zeile-block" title="Rückmeldungen">${rueckText}</span>` : ""}
       ${t.beschreibung ? `<span class="notiz zeile-block">${esc(t.beschreibung.length > 140 ? t.beschreibung.slice(0, 140) + " …" : t.beschreibung)}</span>` : ""}
       ${etiketten ? `<span class="etiketten">${etiketten}</span>` : ""}
     </span>${punkte.length ? fortschritt(fertig, punkte.length) : ""}</button>
@@ -702,6 +727,7 @@ function oeffneTermin(t = null, vorgabe = {}) {
   eigeneTerminOptionen(t);
   externUmschalten();
   zeichneVerknuepfte(t);
+  zeichneRueckmeldung(t);
   $("#t-titel").value = t?.titel || "";
   $("#t-datum").value = t?.datum || heute();
   $("#t-ganztags").checked = t ? !t.start_zeit : false;
@@ -721,6 +747,48 @@ function oeffneTermin(t = null, vorgabe = {}) {
   dT.showModal();
   if (!t && !istTouch()) $("#t-titel").focus();
 }
+
+function zeichneRueckmeldung(t) {
+  $("#t-rueck").hidden = !t;
+  if (!t) return;
+  const r = rueckVon(t.id);
+  $$("[data-rueck]").forEach((b) => {
+    const an = !!r.meine && r.meine.dabei === (b.dataset.rueck === "ja");
+    b.classList.toggle("gewaehlt", an);
+    b.setAttribute("aria-pressed", an ? "true" : "false");
+  });
+  const gemeldet = new Set([...r.dabei, ...r.nicht]);
+  const offen = S.profile.filter((p) => p.aktiv && !gemeldet.has(p.id)).map((p) => p.id);
+  const zeile = (zeichen, wort, ids) => ids.length
+    ? `<p><span class="rueck-zeichen">${zeichen}</span> <strong>${wort}:</strong> ${esc(namenListe(ids).join(", "))}</p>` : "";
+  $("#t-rueck-liste").innerHTML =
+    zeile("✓", "Dabei", r.dabei) + zeile("✗", "Kann nicht", r.nicht) + zeile("…", "Noch keine Rückmeldung", offen);
+}
+
+$("#t-rueck").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-rueck]");
+  const t = bearbeiteterTermin;
+  if (!b || !t) return;
+  const dabei = b.dataset.rueck === "ja";
+  const meine = rueckVon(t.id).meine;
+  const alt = S.rueckmeldungen;
+  // Sofort anzeigen, dann speichern
+  S.rueckmeldungen = alt.filter((r) => !(r.termin_id === t.id && r.person === S.userId));
+  let ergebnis;
+  if (meine && meine.dabei === dabei) {
+    ergebnis = await sb.from("rueckmeldungen").delete().eq("termin_id", t.id).eq("person", S.userId);
+  } else {
+    S.rueckmeldungen.push({ termin_id: t.id, person: S.userId, dabei });
+    ergebnis = await sb.from("rueckmeldungen").upsert({ termin_id: t.id, person: S.userId, dabei }, { onConflict: "termin_id,person" });
+  }
+  if (ergebnis.error) {
+    console.error(ergebnis.error);
+    S.rueckmeldungen = alt;
+    meldung("Die Rückmeldung hat nicht geklappt.", true);
+  }
+  zeichneRueckmeldung(t);
+  zeichneAlles();
+});
 
 function externUmschalten() {
   $("#t-wer-bereich").hidden = !$("#t-extern").checked;
