@@ -725,3 +725,8 @@ input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }
 .rueck-liste p { margin: .25rem 0; }
 .rueck-zeichen { display: inline-block; width: 1.1em; text-align: center; font-weight: 700; }
 .termin .rueck { color: var(--grau); }
+/* Häkchen und Kreuz kräftig und farbig, damit sie auf dem iPhone nicht dünn wirken */
+.rz, .rueck-zeichen { font-weight: 800; font-family: system-ui, sans-serif; }
+.rz.ja, .rueck-zeichen.ja { color: #2e7d32; }
+.rz.nein, .rueck-zeichen.nein { color: #b3261e; }
+.rueck-liste:empty { display: none; }

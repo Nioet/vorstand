@@ -501,14 +501,14 @@ function externKarte(t) {
   const mehrtaegig = t.bis_datum && t.bis_datum !== t.datum;
   const punkte = unterpunkteVon(t.id);
   const offen = punkte.filter((a) => a.status !== "erledigt").length;
-  const absagen = namenListe(rueckVon(t.id).nicht);
+  const rueck = rueckBloecke(t.id);
   return `<button class="termin-extern${t.zustaendig ? " uebernommen" : ""}" data-termin="${t.id}">
     <span class="te-datum" ${mehrtaegig ? `title="bis ${esc(kurzesDatum(t.bis_datum))}"` : ""}><span class="wt">${esc(wochentag(t.datum))}</span><span class="tg">${alsDatum(t.datum).getDate()}${mehrtaegig ? "+" : ""}</span></span>
     <span class="te-text">
       <span class="te-titel">${esc(t.titel)}</span>
-      ${wer || punkte.length || absagen.length ? `<span class="te-wer">${bloecke([
+      ${wer || punkte.length || rueck.some(Boolean) ? `<span class="te-wer">${bloecke([
         wer ? `👤 ${esc(wer)}${t.zustaendig === S.userId ? " (ich)" : ""}` : "",
-        absagen.length ? `✗ ${esc(absagen.join(", "))}` : "",
+        ...rueck,
         punkte.length ? `☑ ${punkte.length - offen} von ${punkte.length}` : "",
       ])}</span>` : ""}
     </span>
@@ -524,15 +524,19 @@ function rueckVon(terminId) {
     meine: zeilen.find((r) => r.person === S.userId) || null,
   };
 }
+// Für die Karten: „✓ Anna, Nils · ✗ Mehmet“
+function rueckBloecke(terminId) {
+  const r = rueckVon(terminId);
+  return [
+    r.dabei.length ? `<span class="rz ja">✓</span>\u00a0${esc(namenListe(r.dabei).join(", "))}` : "",
+    r.nicht.length ? `<span class="rz nein">✗</span>\u00a0${esc(namenListe(r.nicht).join(", "))}` : "",
+  ];
+}
 const namenListe = (ids) => ids.map((id) => nameVon(id) + (id === S.userId ? " (ich)" : "")).sort((x, y) => x.localeCompare(y, "de"));
 
 function terminKarte(t, { mitMarke = true, mitProjekt = true } = {}) {
   if (t.extern) return externKarte(t);
-  const rueck = rueckVon(t.id);
-  const rueckText = bloecke([
-    rueck.dabei.length ? `✓ ${rueck.dabei.length}` : "",
-    rueck.nicht.length ? `✗ ${rueck.nicht.length}` : "",
-  ]);
+  const rueckText = bloecke(rueckBloecke(t.id));
   const h = heute();
   const laeuft = t.datum <= h && (t.bis_datum || t.datum) >= h;
   const punkte = unterpunkteVon(t.id);
@@ -757,12 +761,10 @@ function zeichneRueckmeldung(t) {
     b.classList.toggle("gewaehlt", an);
     b.setAttribute("aria-pressed", an ? "true" : "false");
   });
-  const gemeldet = new Set([...r.dabei, ...r.nicht]);
-  const offen = S.profile.filter((p) => p.aktiv && !gemeldet.has(p.id)).map((p) => p.id);
   const zeile = (zeichen, wort, ids) => ids.length
-    ? `<p><span class="rueck-zeichen">${zeichen}</span> <strong>${wort}:</strong> ${esc(namenListe(ids).join(", "))}</p>` : "";
+    ? `<p><span class="rueck-zeichen ${zeichen === "✓" ? "ja" : "nein"}">${zeichen}</span> <strong>${wort}:</strong> ${esc(namenListe(ids).join(", "))}</p>` : "";
   $("#t-rueck-liste").innerHTML =
-    zeile("✓", "Dabei", r.dabei) + zeile("✗", "Kann nicht", r.nicht) + zeile("…", "Noch keine Rückmeldung", offen);
+    zeile("✓", "Dabei", r.dabei) + zeile("✗", "Kann nicht", r.nicht);
 }
 
 $("#t-rueck").addEventListener("click", async (e) => {
