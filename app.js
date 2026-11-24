@@ -416,6 +416,34 @@ function protokollBuendeln(liste) {
   return aus;
 }
 
+let protokollEintraege = [];
+
+// Eintrag aus dem Protokoll öffnen
+function oeffneAusProtokoll(e) {
+  const weg = () => meldung("Das gibt es inzwischen nicht mehr.", true);
+  if (e.art === "Termin" || e.art === "Rückmeldung") {
+    const t = terminVon(e.objekt_id);
+    return t ? oeffneTermin(t) : weg();
+  }
+  if (e.art === "Aufgabe" || e.art === "Unterpunkt") {
+    const a = S.aufgaben.find((x) => x.id === e.objekt_id);
+    if (!a) return weg();
+    // Mehrere Unterpunkte auf einmal: den Termin mit der ganzen Liste öffnen
+    if (e.anzahl > 1 && a.termin_id && terminVon(a.termin_id)) return oeffneTermin(terminVon(a.termin_id));
+    return oeffneAufgabe(a);
+  }
+  if (e.art === "Projekt") {
+    if (!S.projekte.some((p) => p.id === e.objekt_id)) return weg();
+    S.projektOffen = e.objekt_id;
+    wechsleSeite("projekte");
+    zeichneProjekte();
+  }
+}
+$("#protokoll-liste").addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-protokoll]");
+  if (b) oeffneAusProtokoll(protokollEintraege[Number(b.dataset.protokoll)]);
+});
+
 async function ladeProtokoll() {
   const karte = $("#protokoll-karte");
   karte.hidden = !S.ich?.admin;
@@ -424,12 +452,16 @@ async function ladeProtokoll() {
   const { data, error } = await sb.from("protokoll").select("*").gte("zeit", seit).order("zeit", { ascending: false }).limit(500);
   if (error) { console.error(error); $("#protokoll-liste").innerHTML = `<li class="klein">Konnte nicht geladen werden.</li>`; return; }
   const liste = protokollBuendeln(data);
+  protokollEintraege = liste;
   $("#protokoll-liste").innerHTML = liste.length
-    ? liste.map((e) => {
+    ? liste.map((e, i) => {
         const d = new Date(e.zeit);
         const tag = isoTag(d);
         const zeit = `${kurzesDatum(tag)}, ${pad(d.getHours())}:${pad(d.getMinutes())}\u00a0Uhr`;
-        return `<li><span class="protokoll-zeit">${esc(zeit)},</span> ${esc(protokollSatz(e))}</li>`;
+        const inhalt = `<span class="protokoll-zeit">${esc(zeit)},</span> ${esc(protokollSatz(e))}`;
+        return `<li>${e.objekt_id && e.aktion !== "gelöscht"
+          ? `<button type="button" class="protokoll-knopf" data-protokoll="${i}">${inhalt}</button>`
+          : inhalt}</li>`;
       }).join("")
     : `<li class="klein">In den letzten drei Tagen hat sich nichts geändert.</li>`;
 }

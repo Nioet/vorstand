@@ -736,3 +736,6 @@ input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }
 .protokoll-liste li { padding: .45rem 0; border-top: 1px solid #ece7dc; line-height: 1.35; }
 .protokoll-liste li:first-child { border-top: none; }
 .protokoll-zeit { color: var(--grau); font-size: .85rem; white-space: nowrap; }
+.protokoll-knopf { all: unset; display: block; width: 100%; cursor: pointer; color: var(--text); }
+.protokoll-knopf:active { background: var(--sand); }
+.protokoll-knopf::after { content: " ›"; color: var(--grau); }
