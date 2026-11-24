@@ -104,6 +104,7 @@ const S = {
   projekte: [],
   rueckmeldungen: [],
   aboToken: null,
+  aboTokenTeilen: null,
   zeitraum: "kommend",
   filter: "meine", // Aufgaben öffnen mit den eigenen
   projektFilter: "",
@@ -269,8 +270,9 @@ async function ladeInhalte() {
 }
 
 async function ladeAbo() {
-  const { data } = await sb.from("kalender_abo").select("token").maybeSingle();
-  S.aboToken = data?.token || null;
+  const { data } = await sb.from("kalender_abo").select("id,token");
+  S.aboToken = data?.find((x) => x.id === 1)?.token || null;
+  S.aboTokenTeilen = data?.find((x) => x.id === 2)?.token || null;
   zeichneAbo();
 }
 
@@ -1746,13 +1748,37 @@ function zeichneMehr() {
     .join("");
 }
 
-const aboUrl = () => `${cfg.supabaseUrl.replace(/\/$/, "")}/functions/v1/kalender?token=${S.aboToken}`;
+const aboUrl = (token = S.aboToken) => `${cfg.supabaseUrl.replace(/\/$/, "")}/functions/v1/kalender?token=${token}`;
 
 function zeichneAbo() {
   const ok = !!S.aboToken;
   $("#abo-webcal").href = ok ? aboUrl().replace(/^https?:/, "webcal:") : "#";
   $("#abo-kopieren").disabled = !ok;
+  const ok2 = !!S.aboTokenTeilen;
+  $("#teilen-webcal").href = ok2 ? aboUrl(S.aboTokenTeilen).replace(/^https?:/, "webcal:") : "#";
+  $("#teilen-kopieren").disabled = !ok2;
+  $("#teilen-erneuern").disabled = !ok2;
 }
+
+async function linkKopieren(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = text; document.body.append(ta); ta.select();
+    document.execCommand("copy"); ta.remove();
+  }
+  meldung("Link kopiert.");
+}
+$("#teilen-kopieren").addEventListener("click", () => linkKopieren(aboUrl(S.aboTokenTeilen)));
+$("#teilen-erneuern").addEventListener("click", async () => {
+  if (!confirm("Neuen Link zum Teilen erzeugen? Wer den bisherigen Link abonniert hat, bekommt dann keine Termine mehr. Euer Vorstands-Kalender bleibt unverändert.")) return;
+  const { data, error } = await sb.rpc("abo_token_erneuern", { welcher: 2 });
+  if (error) return meldung("Das hat nicht geklappt.", true);
+  S.aboTokenTeilen = data;
+  zeichneAbo();
+  meldung("Neuer Link zum Teilen erzeugt.");
+});
 
 $("#abo-kopieren").addEventListener("click", async () => {
   const text = aboUrl();
@@ -1768,7 +1794,7 @@ $("#abo-kopieren").addEventListener("click", async () => {
 
 $("#abo-erneuern").addEventListener("click", async () => {
   if (!confirm("Neuen Kalender-Link erzeugen? Alle bisherigen Abos hören dann auf zu funktionieren und müssen neu eingerichtet werden.")) return;
-  const { data, error } = await sb.rpc("abo_token_erneuern");
+  const { data, error } = await sb.rpc("abo_token_erneuern", { welcher: 1 });
   if (error) return meldung("Das hat nicht geklappt.", true);
   S.aboToken = data;
   zeichneAbo();

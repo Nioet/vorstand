@@ -2,6 +2,8 @@
 // Liefert alle Termine und offene Aufgaben mit Frist als .ics-Datei.
 // Aufruf: https://<projekt>.supabase.co/functions/v1/kalender?token=<geheim>
 // Optional: &aufgaben=0 blendet die Aufgaben-Fristen aus.
+// Zweiter Link (kalender_abo id 2) zum Weitergeben: nur eigene Termine mit
+// Zeit und Ort – ohne Aufgaben, Unterpunkte, Notizen und externe Termine.
 //
 // Bewusst ohne Abhängigkeiten in einer Datei, damit man sie auch im
 // Supabase-Dashboard einfach einfügen kann.
@@ -253,8 +255,9 @@ async function antworte(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const token = url.searchParams.get("token") ?? "";
 
-  const [abo] = await lies<{ token: string }[]>("kalender_abo?select=token&id=eq.1");
-  if (!abo || !token || !gleich(token, abo.token)) {
+  const abos = await lies<{ id: number; token: string }[]>("kalender_abo?select=id,token");
+  const passend = token ? abos.find((a) => gleich(token, a.token)) : undefined;
+  if (!passend) {
     return new Response("Dieser Kalender-Link ist ungültig oder wurde erneuert.", {
       status: 403,
       headers: { "Content-Type": "text/plain; charset=utf-8" },
@@ -299,6 +302,22 @@ async function antworte(req: Request): Promise<Response> {
       .map((a) => ({ titel: a.titel, erledigt: a.status === "erledigt", wer: werVon(a), faellig: a.faellig, zeit: a.faellig_zeit ?? null })),
   }));
 
+  const zumTeilen = passend.id === 2;
+  if (zumTeilen) {
+    const oeffentlich: Termin[] = termineRoh
+      .filter((t) => !t.extern)
+      .map((t) => ({
+        id: t.id, titel: t.titel, datum: t.datum, bis_datum: t.bis_datum, start_zeit: t.start_zeit,
+        end_zeit: t.end_zeit, ort: t.ort, beschreibung: null, updated_at: t.updated_at,
+      }));
+    return kalenderAntwort(baueKalender({
+      name: Deno.env.get("KALENDER_NAME_TEILEN") ?? "Termine Grüne BK",
+      termine: oeffentlich,
+      aufgaben: [],
+      domain: new URL(Deno.env.get("SUPABASE_URL")!).hostname,
+    }));
+  }
+
   let aufgaben: Aufgabe[] = [];
   if (url.searchParams.get("aufgaben") !== "0") {
     aufgaben = aufgabenRoh
@@ -330,6 +349,10 @@ async function antworte(req: Request): Promise<Response> {
     appUrl: Deno.env.get("APP_URL") ?? "https://nioet.github.io/vorstand/",
   });
 
+  return kalenderAntwort(ics);
+}
+
+function kalenderAntwort(ics: string): Response {
   return new Response(ics, {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",

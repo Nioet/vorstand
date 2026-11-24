@@ -739,3 +739,4 @@ input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }
 .protokoll-knopf { all: unset; display: block; width: 100%; cursor: pointer; color: var(--text); }
 .protokoll-knopf:active { background: var(--sand); }
 .protokoll-knopf::after { content: " ›"; color: var(--grau); }
+#teilen-erneuern { margin-top: .5rem; }
