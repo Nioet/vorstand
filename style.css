@@ -739,4 +739,46 @@ input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }
 .protokoll-knopf { all: unset; display: block; width: 100%; cursor: pointer; color: var(--text); }
 .protokoll-knopf:active { background: var(--sand); }
 .protokoll-knopf::after { content: " ›"; color: var(--grau); }
-#teilen-erneuern { margin-top: .5rem; }
+
+/* =====================================================================
+   Ecken: größere Radien, innen und außen konzentrisch.
+   Regel: Radius außen = Radius innen + Abstand dazwischen.
+   So haben die Rundungen ineinanderliegender Flächen denselben Mittelpunkt.
+   ===================================================================== */
+:root {
+  --abstand: 14px;                                   /* Innenabstand an den Ecken */
+  --r-innen: 12px;                                   /* Knöpfe, Felder, Datumsquadrat … */
+  --r-karte: calc(var(--r-innen) + var(--abstand));  /* 26px: Karten */
+  --r-gruppe: calc(var(--r-karte) + var(--abstand)); /* 40px: Flächen, die Karten enthalten */
+  --radius: var(--r-karte);
+}
+input, select, textarea, .knopf, .punkt-pfeil, .datum-block, .punkt, .meldung { border-radius: var(--r-innen); }
+
+/* Umschalter (Kommende/Vergangene, Meine/Alle …) */
+.umschalter { padding: 4px; gap: 4px; border-radius: calc(var(--r-innen) + 4px); }
+.umschalter button { border-radius: var(--r-innen); }
+
+/* Karten mit gleichem Abstand an allen Seiten */
+.termin, .aufgabe, .projekt-karte { padding: var(--abstand); border-radius: var(--r-karte); }
+.termin.frist { padding: calc(var(--abstand) - 2px); }   /* 2px gestrichelter Rand zählt mit */
+.fortschritt-text { border-radius: var(--r-innen); }
+.karte { padding: 18px; border-radius: calc(var(--r-innen) + 18px); }
+.spalte { padding: var(--abstand); border-radius: var(--r-gruppe); }
+.unterpunkte-bereich, .rueck-bereich { padding: var(--abstand); border-radius: var(--r-karte); }
+
+/* ＋ sitzt im selben Abstand wie der Inhalt */
+.karte-zeile .dupl-knopf { top: var(--abstand); right: var(--abstand); }
+.karte-zeile .plus-platz,
+.karte-zeile > .projekt-karte .plus-platz { width: 2.75rem; height: 2.75rem; margin-left: .4rem; }
+
+/* Externe Termine: Datumsquadrat 8px vom Rand → Radius 10 + 8 */
+.termin-extern { padding: 8px var(--abstand) 8px 8px; border-radius: 18px; }
+.te-datum { border-radius: 10px; }
+
+/* Fenster: X-Kreis (2,9rem) 14px vom Rand → Radius = 14px + halber Kreis */
+dialog { border-radius: calc(var(--abstand) + 1.45rem); }
+@media (max-width: 40rem) {
+  dialog { border-radius: calc(var(--abstand) + 1.45rem) calc(var(--abstand) + 1.45rem) 0 0; }
+}
+.dialog-kopf { padding: var(--abstand) var(--abstand) .7rem 1.2rem; }
+.aufgabe-kopf > .dupl-knopf { margin: 0; }   /* wie bei Terminkarten: 14px vom Rand */

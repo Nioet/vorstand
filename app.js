@@ -1754,10 +1754,7 @@ function zeichneAbo() {
   const ok = !!S.aboToken;
   $("#abo-webcal").href = ok ? aboUrl().replace(/^https?:/, "webcal:") : "#";
   $("#abo-kopieren").disabled = !ok;
-  const ok2 = !!S.aboTokenTeilen;
-  $("#teilen-webcal").href = ok2 ? aboUrl(S.aboTokenTeilen).replace(/^https?:/, "webcal:") : "#";
-  $("#teilen-kopieren").disabled = !ok2;
-  $("#teilen-erneuern").disabled = !ok2;
+  $("#teilen-kopieren").disabled = !S.aboTokenTeilen;
 }
 
 async function linkKopieren(text) {
@@ -1771,14 +1768,6 @@ async function linkKopieren(text) {
   meldung("Link kopiert.");
 }
 $("#teilen-kopieren").addEventListener("click", () => linkKopieren(aboUrl(S.aboTokenTeilen)));
-$("#teilen-erneuern").addEventListener("click", async () => {
-  if (!confirm("Neuen Link zum Teilen erzeugen? Wer den bisherigen Link abonniert hat, bekommt dann keine Termine mehr. Euer Vorstands-Kalender bleibt unverändert.")) return;
-  const { data, error } = await sb.rpc("abo_token_erneuern", { welcher: 2 });
-  if (error) return meldung("Das hat nicht geklappt.", true);
-  S.aboTokenTeilen = data;
-  zeichneAbo();
-  meldung("Neuer Link zum Teilen erzeugt.");
-});
 
 $("#abo-kopieren").addEventListener("click", async () => {
   const text = aboUrl();
