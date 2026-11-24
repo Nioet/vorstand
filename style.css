@@ -782,3 +782,14 @@ dialog { border-radius: calc(var(--abstand) + 1.45rem); }
 }
 .dialog-kopf { padding: var(--abstand) var(--abstand) .7rem 1.2rem; }
 .aufgabe-kopf > .dupl-knopf { margin: 0; }   /* wie bei Terminkarten: 14px vom Rand */
+
+/* Kleineres ＋ (44px, iPhone-Mindestgröße zum Antippen) mit Luft zum Balken darunter */
+.dupl-knopf { width: 2.45rem; height: 2.45rem; font-size: 1.3rem; }
+.karte-zeile .plus-platz,
+.karte-zeile > .projekt-karte .plus-platz { width: 2.45rem; height: 2.45rem; margin: 0 0 .45rem .4rem; }
+
+/* Projekte in Planung: 2px gestrichelter Rand zählt zum Abstand */
+.projekt-karte.ist-planung { padding: calc(var(--abstand) - 2px); }
+
+/* Letzte Karte in einer Spalte: unten derselbe Abstand wie an den Seiten */
+.spalte .aufgabe:last-child { margin-bottom: 0; }

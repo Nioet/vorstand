@@ -1443,7 +1443,7 @@ function zeichneProjekte() {
         <strong>📁 ${esc(x.name)}</strong>
         ${x.beschreibung ? `<span class="beschreibung">${esc(x.beschreibung.length > 120 ? x.beschreibung.slice(0, 120) + " …" : x.beschreibung)}</span>` : ""}
         ${z.freie.length ? fortschritt(z.freieErledigt, z.freie.length, z.freie.length === 1 ? "Aufgabe erledigt" : "Aufgaben erledigt") : ""}
-        <span class="meta">${meta}</span>
+        ${meta ? `<span class="meta">${meta}</span>` : ""}
       </button>
       <button class="dupl-knopf" data-dupl-projekt="${x.id}" aria-label="Projekt „${esc(x.name)}“ duplizieren" title="Duplizieren">＋</button></div>`;
     };
