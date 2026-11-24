@@ -244,7 +244,7 @@ async function sitzungGeaendert(session) {
 //  Daten laden
 // ------------------------------------------------------------------
 async function ladeProfile() {
-  const { data, error } = await sb.from("profiles").select("id,name,email,aktiv").order("name", { nullsFirst: false });
+  const { data, error } = await sb.from("profiles").select("id,name,email,aktiv,admin").order("name", { nullsFirst: false });
   if (error) throw error;
   S.profile = data;
   S.ich = data.find((p) => p.id === S.userId) || null;
@@ -367,6 +367,71 @@ function wechsleSeite(seite) {
   for (const s of SEITEN) $("#seite-" + s).hidden = s !== seite;
   $$(".leiste button").forEach((b) => b.classList.toggle("aktiv", b.dataset.seite === seite));
   window.scrollTo(0, 0);
+  if (seite === "mehr") ladeProtokoll();
+}
+
+// ------------------------------------------------------------------
+//  Änderungsprotokoll (nur für Konten mit admin = true)
+// ------------------------------------------------------------------
+const FELDNAMEN = {
+  titel: "Titel", name: "Name", datum: "Datum", bis_datum: "Enddatum", start_zeit: "Uhrzeit", end_zeit: "Uhrzeit",
+  ort: "Ort", beschreibung: "Notiz", projekt_id: "Projekt", zustaendig: "Zuständig", zustaendig_extern: "Zuständig",
+  faellig: "Frist", faellig_zeit: "Frist", termin_id: "Termin", status: "Status", extern: "extern", gehoert_zu: "Verknüpfung",
+  abgeschlossen: "abgeschlossen", in_planung: "in Planung", link: "Link",
+};
+const ARTIKEL = { Termin: "den Termin", Aufgabe: "die Aufgabe", Unterpunkt: "den Unterpunkt", Projekt: "das Projekt" };
+
+function protokollSatz(e) {
+  const wer = e.person ? nameVon(e.person) : "Jemand";
+  const titel = e.titel ? `„${e.titel}“` : "";
+  if (e.art === "Rückmeldung") {
+    const was = { zugesagt: "zugesagt", abgesagt: "abgesagt", "zurückgenommen": "die Rückmeldung zurückgenommen" }[e.aktion] || e.aktion;
+    return e.aktion === "zurückgenommen" ? `${wer} hat bei ${titel} ${was}` : `${wer} hat für ${titel} ${was}`;
+  }
+  const anzahl = e.anzahl > 1;
+  const objekt = anzahl
+    ? `${e.anzahl} ${e.art === "Unterpunkt" ? "Unterpunkte" : e.art === "Aufgabe" ? "Aufgaben" : e.art + "e"}`
+    : `${ARTIKEL[e.art] || e.art} ${titel}`;
+  const ort = e.kontext ? ` im Termin „${e.kontext}“` : "";
+  const verb = {
+    angelegt: "angelegt", "geändert": "geändert", "gelöscht": "gelöscht", erledigt: "erledigt",
+    angefangen: "angefangen", wieder_offen: "wieder geöffnet", "übernommen": "übernommen",
+  }[e.aktion] || e.aktion;
+  const felder = [...new Set((e.felder || []).map((f) => FELDNAMEN[f] || f))];
+  return `${wer} hat ${objekt}${ort} ${verb}${felder.length ? ` (${felder.join(", ")})` : ""}`;
+}
+
+// Gleiche Vorgänge derselben Person kurz hintereinander zusammenfassen
+// (z. B. beim Duplizieren eines Termins mit vielen Unterpunkten)
+function protokollBuendeln(liste) {
+  const aus = [];
+  for (const e of liste) {
+    const v = aus[aus.length - 1];
+    if (v && e.art !== "Rückmeldung" && v.art === e.art && v.aktion === e.aktion && v.person === e.person &&
+        v.kontext === e.kontext && v.aktion !== "geändert" &&
+        Math.abs(new Date(v.zeit) - new Date(e.zeit)) < 120000) {
+      v.anzahl = (v.anzahl || 1) + 1;
+    } else aus.push({ ...e });
+  }
+  return aus;
+}
+
+async function ladeProtokoll() {
+  const karte = $("#protokoll-karte");
+  karte.hidden = !S.ich?.admin;
+  if (!S.ich?.admin) return;
+  const seit = new Date(Date.now() - 3 * 86400000).toISOString();
+  const { data, error } = await sb.from("protokoll").select("*").gte("zeit", seit).order("zeit", { ascending: false }).limit(500);
+  if (error) { console.error(error); $("#protokoll-liste").innerHTML = `<li class="klein">Konnte nicht geladen werden.</li>`; return; }
+  const liste = protokollBuendeln(data);
+  $("#protokoll-liste").innerHTML = liste.length
+    ? liste.map((e) => {
+        const d = new Date(e.zeit);
+        const tag = isoTag(d);
+        const zeit = `${kurzesDatum(tag)}, ${pad(d.getHours())}:${pad(d.getMinutes())}\u00a0Uhr`;
+        return `<li><span class="protokoll-zeit">${esc(zeit)},</span> ${esc(protokollSatz(e))}</li>`;
+      }).join("")
+    : `<li class="klein">In den letzten drei Tagen hat sich nichts geändert.</li>`;
 }
 $$(".leiste button").forEach((b) =>
   b.addEventListener("click", () => {

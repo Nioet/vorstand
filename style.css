@@ -730,3 +730,9 @@ input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }
 .rz.ja, .rueck-zeichen.ja { color: #2e7d32; }
 .rz.nein, .rueck-zeichen.nein { color: #b3261e; }
 .rueck-liste:empty { display: none; }
+
+/* ---------- Änderungsprotokoll ---------- */
+.protokoll-liste { list-style: none; margin: .6rem 0 0; padding: 0; max-height: 26rem; overflow-y: auto; font-size: .92rem; }
+.protokoll-liste li { padding: .45rem 0; border-top: 1px solid #ece7dc; line-height: 1.35; }
+.protokoll-liste li:first-child { border-top: none; }
+.protokoll-zeit { color: var(--grau); font-size: .85rem; white-space: nowrap; }
