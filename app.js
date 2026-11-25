@@ -758,13 +758,16 @@ function zeichneTermine() {
     } else {
       const a = e.a;
       const wer = werVon(a);
-      const proj = projektEtikett(projektIdVonAufgabe(a));
-      html += `<button class="termin frist" data-aufgabe="${a.id}">${datumBlock(a.faellig)}
-        <span class="termin-text">
-          <strong>Frist: ${esc(a.titel)}${relMarke(a.faellig)}</strong>
-          ${a.faellig_zeit ? `<span class="zeit">bis ${uhr(a.faellig_zeit)} Uhr</span><br>` : ""}
-          ${wer ? `<span class="ort">👤 ${esc(wer)}</span>` : ""}
-          ${proj ? `<span class="etiketten">${proj}</span>` : ""}
+      // Fristen: klein wie externe Termine, aber dunkelgrün
+      const meta = bloecke([
+        a.faellig_zeit ? `bis ${uhr(a.faellig_zeit)}\u00a0Uhr` : "",
+        wer ? `👤 ${esc(wer)}${a.zustaendig === S.userId ? " (ich)" : ""}` : "",
+      ]);
+      html += `<button class="termin-extern termin-frist" data-aufgabe="${a.id}">
+        <span class="te-datum"><span class="wt">${esc(wochentag(a.faellig))}</span><span class="tg">${alsDatum(a.faellig).getDate()}</span></span>
+        <span class="te-text">
+          <span class="te-titel">Frist: ${esc(a.titel)}</span>
+          ${meta ? `<span class="te-wer">${meta}</span>` : ""}
         </span></button>`;
     }
   }
