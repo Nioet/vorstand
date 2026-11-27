@@ -131,7 +131,7 @@ const S = {
   filter: "meine", // Aufgaben öffnen mit den eigenen
   projektFilter: "",
   projektOffen: null,
-  zeigeAbgeschlossene: false,
+  projektArchiv: false,   // Projekt-Archiv (abgeschlossene Projekte) geöffnet
   sortieren: false,       // ↑/↓ auf dem Aufgabenboard und im Projekt
   listen: {},             // zuletzt angezeigte Reihenfolgen (für ↑/↓)
   seite: localStorage.getItem("vorstand-seite") || "termine",
@@ -672,9 +672,11 @@ async function ladeProtokoll() {
 $$(".leiste button").forEach((b) =>
   b.addEventListener("click", () => {
     // Nochmal auf "Projekte" tippen führt zurück zur Übersicht
-    if (b.dataset.seite === "projekte" && S.seite === "projekte" && S.projektOffen) {
+    if (b.dataset.seite === "projekte" && S.seite === "projekte" && (S.projektOffen || S.projektArchiv)) {
       S.projektOffen = null;
+      S.projektArchiv = false;
       zeichneProjekte();
+      window.scrollTo(0, 0);
     }
     // Beim Öffnen der Aufgaben zuerst die eigenen zeigen
     if (b.dataset.seite === "aufgaben" && S.seite !== "aufgaben") setzeFilter("meine");
@@ -698,10 +700,6 @@ $$("[data-filter]").forEach((b) => b.addEventListener("click", () => setzeFilter
 $("#aufgaben-projekt").addEventListener("change", (e) => {
   S.projektFilter = e.target.value;
   zeichneAufgaben();
-});
-$("#zeige-abgeschlossene").addEventListener("change", (e) => {
-  S.zeigeAbgeschlossene = e.target.checked;
-  zeichneProjekte();
 });
 
 function zeichneAlles() {
@@ -751,7 +749,13 @@ $(".inhalt").addEventListener("click", (e) => {
     case "neues-projekt": return oeffneProjekt(null);
     case "neue-planung": return oeffneProjekt(null, { in_planung: true });
     case "projekt-starten": return p && projektStarten(p);
-    case "projekte-zurueck": S.projektOffen = null; zeichneProjekte(); return window.scrollTo(0, 0);
+    case "projekte-zurueck":
+      // Aus einem archivierten Projekt zurück ins Archiv, sonst zur Übersicht
+      if (!S.projektOffen || !p?.abgeschlossen) S.projektArchiv = false;
+      S.projektOffen = null; zeichneProjekte(); return window.scrollTo(0, 0);
+    case "projekt-archiv": S.projektArchiv = true; S.projektOffen = null; zeichneProjekte(); return window.scrollTo(0, 0);
+    case "projekt-abschliessen": return p && projektAbschliessen(p, true);
+    case "projekt-aufnehmen": return p && projektAbschliessen(p, false);
     case "projekt-bearbeiten": return p && oeffneProjekt(p);
     case "projekt-termin": return p && oeffneTermin(null, { projekt_id: p.id });
     case "projekt-aufgabe": return p && oeffneAufgabe(null, { projekt_id: p.id });
@@ -1991,9 +1995,11 @@ function zeichneProjekte() {
   const p = projektVon(S.projektOffen);
   if (S.projektOffen && !p) S.projektOffen = null;
 
+  const archiv = $("#projekt-archiv");
   if (!p) {
     detail.hidden = true;
-    uebersicht.hidden = false;
+    uebersicht.hidden = S.projektArchiv;
+    archiv.hidden = !S.projektArchiv;
     const karte = (x) => {
       const z = projektZahlen(x);
       const wer = nameVon(x.zustaendig);
@@ -2030,20 +2036,44 @@ function zeichneProjekte() {
     };
     const laufend = sortiert(S.projekte.filter((x) => !x.abgeschlossen && !x.in_planung));
     const planung = sortiert(S.projekte.filter((x) => !x.abgeschlossen && x.in_planung));
-    const fertig = S.zeigeAbgeschlossene ? sortiert(S.projekte.filter((x) => x.abgeschlossen)) : [];
+    const abgeschlossen = S.projekte.filter((x) => x.abgeschlossen);
 
+    if (S.projektArchiv) {
+      // Archiv: zuletzt aktive Projekte zuerst, nach Jahr gegliedert
+      const zuletzt = (x) => {
+        const t = projektZahlen(x).termine.map((y) => y.bis_datum || y.datum).sort().pop();
+        const u = (x.updated_at || x.created_at || "").slice(0, 10);
+        return [t, u].filter(Boolean).sort().pop() || "";
+      };
+      const liste = abgeschlossen.map((x) => [zuletzt(x), x]).sort((a, b) => b[0].localeCompare(a[0]) || nachText("name")(a[1], b[1]));
+      let jahr = null;
+      archiv.innerHTML = `
+        <button class="knopf leise" data-aktion="projekte-zurueck">← Alle Projekte</button>
+        <h2 class="archiv-kopf">🗄 Projekt-Archiv</h2>
+        <p class="klein">Abgeschlossene Projekte mit allen Terminen und Aufgaben. Zum Nachschauen oder als Vorlage: mit ＋ duplizieren.</p>
+        ${liste.map(([d, x]) => {
+          const j = d.slice(0, 4);
+          const kopf = j !== jahr ? `<h2 class="monat">${esc(j || "Ohne Datum")}</h2>` : "";
+          jahr = j;
+          return kopf + karte(x);
+        }).join("") || `<p class="leer">Noch keine abgeschlossenen Projekte. Ein fertiges Projekt kommt über „✔ Projekt abschließen“ hierher.</p>`}`;
+      return;
+    }
+
+    $("#projekt-archiv-anzahl").textContent = abgeschlossen.length
+      ? `${abgeschlossen.length} abgeschlossene${abgeschlossen.length === 1 ? "s Projekt" : " Projekte"}`
+      : "Hier landen abgeschlossene Projekte";
     $("#projekte-liste").innerHTML =
-      [...laufend, ...fertig].map(karte).join("") ||
+      laufend.map(karte).join("") ||
       `<p class="leer">${S.projekte.length ? "Gerade keine laufenden Projekte." : "Noch keine Projekte. Ein Projekt sammelt Termine und Aufgaben, z. B. „Neujahrsempfang“ oder „Wahlkampf“."}</p>`;
     $("#planung-liste").innerHTML =
       planung.map(karte).join("") ||
       `<p class="leer">Hier sammelt ihr Vorhaben, die noch nicht feststehen.</p>`;
-    $("#zeige-abgeschlossene").checked = S.zeigeAbgeschlossene;
-    $("#zeige-abgeschlossene").parentElement.hidden = !S.projekte.some((x) => x.abgeschlossen);
     return;
   }
 
   uebersicht.hidden = true;
+  archiv.hidden = true;
   detail.hidden = false;
   const z = projektZahlen(p);
   const h = heute();
@@ -2055,7 +2085,7 @@ function zeichneProjekte() {
   const hatUnterpunkte = z.aufgaben.length > z.freie.length;
 
   detail.innerHTML = `
-    <button class="knopf leise" data-aktion="projekte-zurueck">← Alle Projekte</button>
+    <button class="knopf leise" data-aktion="projekte-zurueck">${p.abgeschlossen && S.projektArchiv ? "← Projekt-Archiv" : "← Alle Projekte"}</button>
     <div class="karte projekt-kopf karte-zeile">
       <button class="dupl-knopf" data-dupl-projekt="${p.id}" aria-label="Projekt duplizieren" title="Duplizieren">＋</button>
       <h2 style="padding-right:3.2rem">📁 ${esc(p.name)}${p.abgeschlossen ? ' <span class="marke">abgeschlossen</span>' : p.in_planung ? ' <span class="marke planung">in Planung</span>' : ""}</h2>
@@ -2064,6 +2094,9 @@ function zeichneProjekte() {
       ${z.freie.length ? `<p>${fortschritt(z.freieErledigt, z.freie.length, z.freie.length === 1 ? "Aufgabe erledigt" : "Aufgaben erledigt")}</p>` : ""}
       ${p.in_planung && !p.abgeschlossen ? `<button class="knopf haupt breit" data-aktion="projekt-starten">▶ Projekt starten</button>` : ""}
       <button class="knopf breit" data-aktion="projekt-bearbeiten">Projekt bearbeiten</button>
+      ${p.abgeschlossen
+        ? `<button class="knopf breit" data-aktion="projekt-aufnehmen">↺ Wieder aufnehmen</button>`
+        : `<button class="knopf breit" data-aktion="projekt-abschliessen">✔ Projekt abschließen</button>`}
     </div>
 
     <section class="projekt-detail-abschnitt">
@@ -2096,6 +2129,20 @@ function zeichneProjekte() {
 // --- Projekt-Dialog ---
 const dP = $("#dialog-projekt");
 let bearbeitetesProjekt = null;
+
+// Abschließen schiebt das Projekt ins Projekt-Archiv, „Wieder aufnehmen“ holt es zurück
+async function projektAbschliessen(p, abschliessen) {
+  const offen = projektZahlen(p).aufgaben.filter((a) => a.status !== "erledigt").length;
+  if (abschliessen && !confirm(`„${p.name}“ abschließen und ins Projekt-Archiv verschieben?` +
+      (offen ? `\n\n${offen === 1 ? "Eine Aufgabe ist" : `${offen} Aufgaben sind`} noch nicht erledigt.` : ""))) return;
+  const { error } = await sb.from("projekte").update({ abgeschlossen: abschliessen }).eq("id", p.id);
+  if (error) return meldung("Das hat nicht geklappt.", true);
+  meldung(abschliessen ? "Projekt abgeschlossen – es liegt jetzt im Projekt-Archiv." : "Projekt wieder aufgenommen.");
+  S.projektOffen = abschliessen ? null : p.id;
+  S.projektArchiv = false;
+  await neuLadenUndZeichnen();
+  window.scrollTo(0, 0);
+}
 
 async function projektStarten(p) {
   const { error } = await sb.from("projekte").update({ in_planung: false }).eq("id", p.id);

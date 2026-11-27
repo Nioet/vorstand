@@ -975,8 +975,8 @@ html, body, button, a, input, select, textarea, label { touch-action: manipulati
   margin: .75rem calc(-1 * var(--abstand)) calc(-1 * var(--abstand));
   border-radius: 0;
   height: 2.1rem;
-  background: var(--weiss);
-  border-top: 1px solid var(--linie);
+  /* früherer grauer Balkengrund, zu 70 % mit Weiß aufgehellt (statt Trennlinie) */
+  background: #f8f7f3;
 }
 .termin > .fortschritt-text > .fuellung,
 .projekt-karte > .fortschritt-text > .fuellung { background: #a6cf4f; }
@@ -991,3 +991,9 @@ html, body, button, a, input, select, textarea, label { touch-action: manipulati
   width: calc(100% + 2 * (var(--abstand) - 2px));
   margin: .75rem calc(-1 * (var(--abstand) - 2px)) calc(-1 * (var(--abstand) - 2px));
 }
+
+/* Projekt-Archiv */
+.projekt-archiv-zugang { margin-top: 1.4rem; }
+#projekt-archiv .archiv-kopf { margin-top: .4rem; }
+#projekt-archiv > .klein { margin: 0 .2rem .4rem; }
+#projekt-archiv .projekt-karte.ist-abgeschlossen { opacity: 1; }

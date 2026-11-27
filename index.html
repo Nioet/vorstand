@@ -90,8 +90,12 @@
             <button class="knopf breit" data-aktion="neue-planung">＋ Neues Projekt in Planung</button>
           </section>
 
-          <label class="haken"><input type="checkbox" id="zeige-abgeschlossene"> Abgeschlossene Projekte zeigen</label>
+          <button type="button" class="karte archiv-zugang projekt-archiv-zugang" data-aktion="projekt-archiv">
+            <span class="archiv-zugang-titel">🗄 Projekt-Archiv</span>
+            <span class="klein" id="projekt-archiv-anzahl">Abgeschlossene Projekte</span>
+          </button>
         </div>
+        <div id="projekt-archiv" hidden></div>
         <div id="projekt-detail" hidden></div>
       </section>
 
