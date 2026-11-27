@@ -124,7 +124,7 @@ const S = {
 // kommt der Anfangsbuchstabe des Nachnamens dazu ("Anna M.").
 function anzeigeNamen(profile) {
   const teile = (p) => (p.name || "").trim().split(/\s+/).filter(Boolean);
-  const vor = (p) => teile(p)[0] || (p.email || "").split("@")[0] || "?";
+  const vor = (p) => teile(p)[0] || "(ohne Namen)";
   const anzahl = {};
   for (const p of profile) anzahl[vor(p).toLowerCase()] = (anzahl[vor(p).toLowerCase()] || 0) + 1;
   const namen = {};
@@ -262,7 +262,7 @@ async function ladeInhalte() {
     sb.from("projekte").select("*").order("name"),
     sb.from("rueckmeldungen").select("termin_id,person,dabei"),
     sb.from("schichten").select("id,termin_id,start_zeit,end_zeit,plaetze").order("start_zeit"),
-    sb.from("schicht_eintraege").select("schicht_id,person,created_at").order("created_at"),
+    sb.from("schicht_eintraege").select("id,schicht_id,person,name,created_at").order("created_at"),
   ]);
   // Rückmeldungen und Schichten sind Zusatz: Fehlt eine Tabelle o. Ä., läuft der Rest trotzdem
   S.rueckmeldungen = r.error ? [] : r.data;
@@ -571,7 +571,8 @@ function protokollSatz(e) {
     return e.aktion === "zurückgenommen" ? `${wer} hat bei ${titel} ${was}` : `${wer} hat für ${titel} ${was}`;
   }
   if (e.art === "Schicht") {
-    return `${wer} hat sich bei ${titel}${e.kontext ? ` für ${e.kontext}` : ""} ${e.aktion === "eingetragen" ? "eingetragen" : "ausgetragen"}`;
+    const wen = e.felder?.length ? e.felder[0] : "sich";   // Helfer ohne App stehen mit Namen im Feld "felder"
+    return `${wer} hat ${wen} bei ${titel}${e.kontext ? ` für ${e.kontext}` : ""} ${e.aktion === "eingetragen" ? "eingetragen" : "ausgetragen"}`;
   }
   const anzahl = e.anzahl > 1;
   const objekt = anzahl
@@ -847,7 +848,10 @@ function rueckBloecke(terminId) {
 // ------------------------------------------------------------------
 const schichtenVon = (terminId) =>
   S.schichten.filter((x) => x.termin_id === terminId).sort((a, b) => a.start_zeit.localeCompare(b.start_zeit) || a.end_zeit.localeCompare(b.end_zeit));
-const eintraegeVon = (schichtId) => S.schichtEintraege.filter((e) => e.schicht_id === schichtId).map((e) => e.person);
+// Einträge einer Schicht: Vorstandsmitglieder (person) oder Helfer ohne App (name)
+const eintraegeVon = (schichtId) => S.schichtEintraege.filter((e) => e.schicht_id === schichtId);
+const binDabei = (schichtId) => eintraegeVon(schichtId).some((e) => e.person === S.userId);
+const eintragName = (e) => (e.person ? nameVon(e.person) + (e.person === S.userId ? " (ich)" : "") : e.name);
 const schichtZeit = (x) => `${uhr(x.start_zeit)}–${uhr(x.end_zeit)}\u00a0Uhr`;
 const kurzeZeit = (z) => (z || "").slice(0, 5).replace(/^0/, "").replace(/:00$/, "");
 
@@ -856,7 +860,7 @@ function schichtKartenText(terminId) {
   const liste = schichtenVon(terminId);
   if (!liste.length) return "";
   const frei = liste.reduce((n, x) => n + Math.max(0, x.plaetze - eintraegeVon(x.id).length), 0);
-  const meine = liste.filter((x) => eintraegeVon(x.id).includes(S.userId))
+  const meine = liste.filter((x) => binDabei(x.id))
     .map((x) => `${kurzeZeit(x.start_zeit)}–${kurzeZeit(x.end_zeit)}`);
   return bloecke([
     frei ? `👥 noch ${frei} ${frei === 1 ? "Platz" : "Plätze"} frei` : "👥 alle Schichten besetzt",
@@ -875,7 +879,7 @@ function zeichneSchichtenAnsicht(t) {
   }
   $("#t-schichten-ansicht").innerHTML = liste.map((x) => {
     const leute = eintraegeVon(x.id);
-    const dabei = leute.includes(S.userId);
+    const dabei = binDabei(x.id);
     const frei = x.plaetze - leute.length;
     const status = frei > 0 ? `noch ${frei} ${frei === 1 ? "Platz" : "Plätze"} frei` : "voll";
     const knopf = dabei
@@ -883,21 +887,66 @@ function zeichneSchichtenAnsicht(t) {
       : frei > 0
         ? `<button type="button" class="knopf haupt breit" data-schicht="${x.id}" aria-pressed="false">Ich bin dabei</button>`
         : `<button type="button" class="knopf breit" disabled>Schicht ist voll</button>`;
+    // Helfer ohne App lassen sich wieder entfernen (✕), Vorstandsmitglieder tragen sich selbst aus
+    const namen = leute.length
+      ? `<ul class="schicht-namen">${leute.map((e) => e.person
+          ? `<li class="${e.person === S.userId ? "ich" : ""}">${esc(eintragName(e))}</li>`
+          : `<li class="ohne-app">${esc(e.name)}<button type="button" class="name-weg" data-name-weg="${e.id}" aria-label="${esc(e.name)} austragen">✕</button></li>`).join("")}</ul>`
+      : `<p class="schicht-leer">Noch niemand eingetragen</p>`;
+    const anderer = frei > 0
+      ? `<details class="schicht-anderer">
+          <summary>＋ Jemanden ohne App eintragen</summary>
+          <div class="zeile">
+            <input type="text" maxlength="60" autocomplete="off" enterkeyhint="done" placeholder="Name, z. B. Hans M." aria-label="Name" data-name-feld="${x.id}">
+            <button type="button" class="knopf" data-name-dazu="${x.id}">Eintragen</button>
+          </div>
+        </details>`
+      : "";
     return `<li class="schicht${frei <= 0 ? " voll" : ""}${dabei ? " meine" : ""}">
       <div class="schicht-kopf"><strong>${esc(schichtZeit(x))}</strong><span class="schicht-frei">${status}</span></div>
-      <p class="schicht-namen">${leute.length ? esc(namenListe(leute).join(", ")) : "Noch niemand eingetragen"}</p>
+      ${namen}
       ${knopf}
+      ${anderer}
     </li>`;
   }).join("");
 }
 
+function schichtFehler(error) {
+  console.error(error);
+  const voll = /voll/.test(error.message || "") || error.hint === "schicht_voll";
+  meldung(voll ? "Diese Schicht ist inzwischen voll." : "Das hat nicht geklappt.", true);
+  return voll;
+}
+
+async function schichtNeuZeichnen(t, nachladen = false) {
+  if (nachladen) await neuLadenUndZeichnen();
+  zeichneSchichtenAnsicht(terminVon(t.id) || t);
+  zeichneAlles();
+}
+
 $("#t-schichten-ansicht").addEventListener("click", async (e) => {
-  const b = e.target.closest("[data-schicht]");
   const t = bearbeiteterTermin;
-  if (!b || !t) return;
-  const x = S.schichten.find((s) => s.id === b.dataset.schicht);
+  if (!t) return;
+  // Helfer ohne App eintragen
+  const dazu = e.target.closest("[data-name-dazu]");
+  if (dazu) return nameEintragen(t, dazu.dataset.nameDazu);
+  // Helfer ohne App austragen
+  const weg = e.target.closest("[data-name-weg]");
+  if (weg) {
+    const eintrag = S.schichtEintraege.find((y) => y.id === weg.dataset.nameWeg);
+    if (!eintrag || !confirm(`${eintrag.name} aus der Schicht austragen?`)) return;
+    const alt = S.schichtEintraege;
+    S.schichtEintraege = alt.filter((y) => y.id !== eintrag.id);
+    const { error } = await sb.from("schicht_eintraege").delete().eq("id", eintrag.id);
+    if (error) { S.schichtEintraege = alt; schichtFehler(error); } else meldung(`${eintrag.name} ausgetragen.`);
+    return schichtNeuZeichnen(t);
+  }
+  // Sich selbst ein- oder austragen
+  const b = e.target.closest("[data-schicht]");
+  if (!b) return;
+  const x = S.schichten.find((y) => y.id === b.dataset.schicht);
   if (!x) return;
-  const dabei = eintraegeVon(x.id).includes(S.userId);
+  const dabei = binDabei(x.id);
   if (dabei && !confirm(`Aus der Schicht ${schichtZeit(x)} austragen?`)) return;
   b.disabled = true;
   const alt = S.schichtEintraege;
@@ -906,21 +955,36 @@ $("#t-schichten-ansicht").addEventListener("click", async (e) => {
     S.schichtEintraege = alt.filter((y) => !(y.schicht_id === x.id && y.person === S.userId));
     ergebnis = await sb.from("schicht_eintraege").delete().eq("schicht_id", x.id).eq("person", S.userId);
   } else {
-    S.schichtEintraege = alt.concat([{ schicht_id: x.id, person: S.userId, created_at: new Date().toISOString() }]);
-    ergebnis = await sb.from("schicht_eintraege").insert({ schicht_id: x.id, person: S.userId });
+    const id = crypto.randomUUID();
+    S.schichtEintraege = alt.concat([{ id, schicht_id: x.id, person: S.userId, name: null, created_at: new Date().toISOString() }]);
+    ergebnis = await sb.from("schicht_eintraege").insert({ id, schicht_id: x.id, person: S.userId });
   }
-  if (ergebnis.error) {
-    console.error(ergebnis.error);
-    S.schichtEintraege = alt;
-    const voll = /voll/.test(ergebnis.error.message || "") || ergebnis.error.hint === "schicht_voll";
-    meldung(voll ? "Diese Schicht ist inzwischen voll." : "Das hat nicht geklappt.", true);
-    if (voll) await neuLadenUndZeichnen();
-  } else {
-    meldung(dabei ? "Ausgetragen." : `Eingetragen: ${schichtZeit(x)}.`);
-  }
-  zeichneSchichtenAnsicht(terminVon(t.id) || t);
-  zeichneAlles();
+  let voll = false;
+  if (ergebnis.error) { S.schichtEintraege = alt; voll = schichtFehler(ergebnis.error); }
+  else meldung(dabei ? "Ausgetragen." : `Eingetragen: ${schichtZeit(x)}.`);
+  schichtNeuZeichnen(t, voll);
 });
+
+// Enter im Namensfeld trägt ein
+$("#t-schichten-ansicht").addEventListener("keydown", (e) => {
+  const feld = e.target.closest("[data-name-feld]");
+  if (feld && e.key === "Enter") { e.preventDefault(); nameEintragen(bearbeiteterTermin, feld.dataset.nameFeld); }
+});
+
+async function nameEintragen(t, schichtId) {
+  const feld = $(`[data-name-feld="${schichtId}"]`);
+  const name = (feld?.value || "").trim().replace(/\s+/g, " ");
+  if (!t || !name) { feld?.focus(); return meldung("Bitte einen Namen eingeben.", true); }
+  const x = S.schichten.find((y) => y.id === schichtId);
+  const id = crypto.randomUUID();
+  const alt = S.schichtEintraege;
+  S.schichtEintraege = alt.concat([{ id, schicht_id: schichtId, person: null, name, created_at: new Date().toISOString() }]);
+  const { error } = await sb.from("schicht_eintraege").insert({ id, schicht_id: schichtId, person: null, name });
+  let voll = false;
+  if (error) { S.schichtEintraege = alt; voll = schichtFehler(error); }
+  else meldung(`${name} eingetragen${x ? `: ${schichtZeit(x)}` : ""}.`);
+  schichtNeuZeichnen(t, voll);
+}
 
 // Bearbeiten: Schichten als Entwurf, gespeichert wird mit dem Termin
 let entwurfSchichten = [];
@@ -2227,8 +2291,7 @@ function zeichneMehr() {
   if (document.activeElement !== $("#mein-name")) $("#mein-name").value = S.ich?.name || "";
   $("#vorstand-liste").innerHTML = S.profile
     .filter((p) => p.aktiv)
-    .map((p) => `<li><strong>${esc(p.name ? nameVon(p.id) : "(noch ohne Namen)")}</strong><br>
-      ${p.email ? `<a href="mailto:${esc(p.email)}">${esc(p.email)}</a>` : ""}</li>`)
+    .map((p) => `<li><strong>${esc(p.name ? p.name : "(noch ohne Namen)")}</strong></li>`)
     .join("");
 }
 

@@ -920,7 +920,6 @@ html, body, button, a, input, select, textarea, label { touch-action: manipulati
 .schicht-kopf strong { font-size: 1.1rem; }
 .schicht-frei { font-size: .9rem; color: var(--klee); font-weight: 600; }
 .schicht.voll .schicht-frei { color: var(--grau); }
-.schicht-namen { margin: .15rem 0 .5rem; font-size: .95rem; color: var(--text); }
 .schicht .knopf.breit { margin-top: 0; min-height: 3rem; }
 .schicht .knopf.gewaehlt { background: #e3efe0; color: var(--tanne); border-color: var(--tanne); }
 
@@ -937,3 +936,24 @@ html, body, button, a, input, select, textarea, label { touch-action: manipulati
   font: inherit; font-size: 1rem; cursor: pointer;
 }
 .schichten-edit #t-schicht-dazu { margin-top: .2rem; }
+
+/* Namen in einer Schicht; Helfer ohne App mit ✕ zum Austragen */
+.schicht-namen { list-style: none; display: flex; flex-wrap: wrap; gap: .35rem; margin: .35rem 0 .55rem; padding: 0; }
+.schicht-namen li {
+  display: inline-flex; align-items: center; gap: .15rem;
+  padding: .2rem .65rem; min-height: 2rem;
+  background: var(--weiss); border-radius: 999px; font-size: .95rem;
+}
+.schicht-namen li.ich { background: #e3efe0; color: var(--tanne); font-weight: 600; }
+.schicht-namen li.ohne-app { padding-right: .2rem; }
+.name-weg {
+  width: 1.9rem; height: 1.9rem; margin-left: .1rem; border: none; border-radius: 50%;
+  background: transparent; color: var(--grau); font: inherit; font-size: .85rem; cursor: pointer;
+}
+.name-weg:active { background: var(--sand); }
+.schicht-leer { margin: .15rem 0 .55rem; font-size: .95rem; color: var(--grau); }
+.schicht-anderer { margin-top: .45rem; }
+.schicht-anderer summary { cursor: pointer; color: var(--tanne); font-weight: 600; font-size: .95rem; padding: .35rem 0; list-style: none; }
+.schicht-anderer summary::-webkit-details-marker { display: none; }
+.schicht-anderer .zeile { margin-top: .3rem; align-items: stretch; }
+.schicht-anderer .zeile > .knopf { flex: 0 0 auto; min-height: 3rem; }

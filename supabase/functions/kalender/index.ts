@@ -276,6 +276,7 @@ async function antworte(req: Request): Promise<Response> {
     zustaendig_extern: string | null;
   };
   type SchichtRoh = { id: string; termin_id: string; start_zeit: string; end_zeit: string; plaetze: number };
+  type Eintrag = { schicht_id: string; person: string | null; name: string | null };
   const [termineRoh, aufgabenRoh, projekte, profile, schichtenRoh, eintraegeRoh] = await Promise.all([
     lies<TerminRoh[]>(
       `termine?select=id,titel,datum,bis_datum,start_zeit,end_zeit,ort,beschreibung,updated_at,projekt_id,extern,zustaendig,quelle,mit_schichten` +
@@ -289,7 +290,7 @@ async function antworte(req: Request): Promise<Response> {
     lies<{ id: string; name: string }[]>("projekte?select=id,name"),
     lies<Person[]>("profiles?select=id,name,email"),
     lies<SchichtRoh[]>("schichten?select=id,termin_id,start_zeit,end_zeit,plaetze&order=start_zeit").catch(() => [] as SchichtRoh[]),
-    lies<{ schicht_id: string; person: string }[]>("schicht_eintraege?select=schicht_id,person&order=created_at").catch(() => [] as { schicht_id: string; person: string }[]),
+    lies<Eintrag[]>("schicht_eintraege?select=schicht_id,person,name&order=created_at").catch(() => [] as Eintrag[]),
   ]);
   const namen = anzeigeNamen(profile);
   const projektName = new Map(projekte.map((p) => [p.id, p.name]));
@@ -306,7 +307,7 @@ async function antworte(req: Request): Promise<Response> {
       .filter((a) => a.termin_id === t.id)
       .map((a) => ({ titel: a.titel, erledigt: a.status === "erledigt", wer: werVon(a), faellig: a.faellig, zeit: a.faellig_zeit ?? null })),
     schichten: t.mit_schichten ? schichtenRoh.filter((x) => x.termin_id === t.id).map((x) => {
-      const leute = eintraegeRoh.filter((e) => e.schicht_id === x.id).map((e) => namen.get(e.person) ?? "?");
+      const leute = eintraegeRoh.filter((e) => e.schicht_id === x.id).map((e) => e.name ?? (e.person ? namen.get(e.person) : null) ?? "?");
       const frei = x.plaetze - leute.length;
       const zeit = `${kurzUhr(x.start_zeit)}–${kurzUhr(x.end_zeit)} Uhr`;
       return `${zeit}: ${leute.length ? leute.join(", ") : "noch niemand"}${frei > 0 ? ` (noch ${frei} frei)` : ""}`;
