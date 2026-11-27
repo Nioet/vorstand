@@ -97,6 +97,11 @@
 
       <!-- Mehr -->
       <section id="seite-mehr" class="seite" hidden>
+        <button class="karte archiv-zugang" id="archiv-oeffnen" type="button">
+          <span class="archiv-zugang-titel">📚 Archiv</span>
+          <span class="klein">Was haben wir schon mal geschrieben? Hallo BK, Website, Anträge und Presse durchsuchen.</span>
+        </button>
+
         <div class="karte">
           <h2>Mein Vorname</h2>
           <p class="klein">So sehen dich die anderen bei Aufgaben.</p>
@@ -168,6 +173,26 @@
         </div>
 
         <button id="abmelden" class="knopf leise breit">Abmelden</button>
+      </section>
+
+      <!-- Archiv: frühere Texte durchsuchen (nur lesen) -->
+      <section id="seite-archiv" class="seite" hidden>
+        <button class="knopf leise archiv-zurueck" id="archiv-zurueck" type="button">← Mehr</button>
+        <div id="archiv-liste-bereich">
+          <h2 class="archiv-kopf">Archiv</h2>
+          <input id="archiv-suche" class="archiv-suche" type="search" enterkeyhint="search" autocomplete="off"
+            placeholder="Was haben wir schon mal geschrieben?" aria-label="Im Archiv suchen">
+          <p id="archiv-hinweis" class="klein archiv-hinweis">Zuletzt erschienen</p>
+          <ul id="archiv-liste" class="archiv-liste"></ul>
+        </div>
+        <article id="archiv-text" class="karte archiv-text" hidden>
+          <p id="archiv-text-quelle" class="archiv-quelle"></p>
+          <h2 id="archiv-text-titel"></h2>
+          <div id="archiv-text-inhalt" class="archiv-inhalt"></div>
+          <button id="archiv-kopieren" class="knopf haupt breit" type="button">Text kopieren</button>
+          <a id="archiv-original" class="knopf breit" target="_blank" rel="noopener">Original öffnen ↗</a>
+          <button id="archiv-text-zurueck" class="knopf leise breit" type="button">← Zurück zur Liste</button>
+        </article>
       </section>
     </main>
 

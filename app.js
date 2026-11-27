@@ -360,17 +360,140 @@ document.addEventListener("visibilitychange", () => {
 // ------------------------------------------------------------------
 //  Navigation
 // ------------------------------------------------------------------
-const SEITEN = ["termine", "aufgaben", "projekte", "mehr"];
+const SEITEN = ["termine", "aufgaben", "projekte", "mehr", "archiv"];
 
 function wechsleSeite(seite) {
   if (!SEITEN.includes(seite)) seite = "termine";
   S.seite = seite;
   localStorage.setItem("vorstand-seite", seite);
   for (const s of SEITEN) $("#seite-" + s).hidden = s !== seite;
-  $$(".leiste button").forEach((b) => b.classList.toggle("aktiv", b.dataset.seite === seite));
+  const reiter = seite === "archiv" ? "mehr" : seite;
+  $$(".leiste button").forEach((b) => b.classList.toggle("aktiv", b.dataset.seite === reiter));
   window.scrollTo(0, 0);
   if (seite === "mehr") ladeProtokoll();
+  if (seite === "archiv") archivStart();
 }
+
+// ------------------------------------------------------------------
+//  Archiv: frühere Texte durchsuchen, lesen und kopieren (nur lesen)
+// ------------------------------------------------------------------
+const QUELLEN = {
+  hallo: "Hallo Bad Krozingen", website: "Website", presse: "Pressemitteilung",
+  antrag: "Antrag / Rede", bz: "Badische Zeitung",
+};
+const A = { zuletzt: null, ergebnisse: null, begriff: "", anfrage: 0, offen: null, scroll: 0 };
+const archivFelder = "id, datum, quelle, titel, link";
+
+async function archivStart() {
+  if (A.offen) return;
+  if (!A.zuletzt) {
+    $("#archiv-liste").innerHTML = `<li class="klein">Wird geladen …</li>`;
+    const { data, error } = await sb.from("texte").select(archivFelder).order("datum", { ascending: false }).limit(10);
+    if (error) { $("#archiv-liste").innerHTML = `<li class="klein">Das Archiv konnte nicht geladen werden.</li>`; return; }
+    A.zuletzt = data;
+  }
+  zeichneArchivListe();
+}
+
+function archivEintrag(t) {
+  const auszug = t.auszug
+    ? `<span class="archiv-auszug">${esc(t.auszug.replace(/\s+/g, " ").trim()).replace(/«/g, "<mark>").replace(/»/g, "</mark>")}</span>`
+    : "";
+  return `<li><button class="archiv-eintrag" data-archiv="${t.id}" type="button">
+    <span class="archiv-quelle">${esc(kurzesDatum(t.datum))} · ${esc(QUELLEN[t.quelle] || t.quelle)}</span>
+    <span class="archiv-titel">${esc(t.titel)}</span>${auszug}</button></li>`;
+}
+
+function zeichneArchivListe() {
+  const suche = A.begriff.length >= 2;
+  const liste = suche ? A.ergebnisse : A.zuletzt;
+  const hinweis = $("#archiv-hinweis");
+  if (!suche) hinweis.textContent = "Zuletzt erschienen";
+  else if (!liste) hinweis.textContent = "Suche läuft …";
+  else hinweis.textContent = liste.length === 0 ? "Nichts gefunden. Vielleicht mit einem anderen Wort?"
+    : liste.length === 1 ? "1 Text gefunden" : `${liste.length >= 50 ? "Mehr als 50" : liste.length} Texte gefunden`;
+  $("#archiv-liste").innerHTML = (liste || []).map(archivEintrag).join("");
+}
+
+let archivTimer;
+$("#archiv-suche").addEventListener("input", (e) => {
+  A.begriff = e.target.value.trim();
+  clearTimeout(archivTimer);
+  if (A.begriff.length < 2) { A.ergebnisse = null; return zeichneArchivListe(); }
+  A.ergebnisse = null;
+  zeichneArchivListe();
+  archivTimer = setTimeout(archivSuchen, 300);
+});
+$("#archiv-suche").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); clearTimeout(archivTimer); archivSuchen(); e.target.blur(); }
+});
+
+async function archivSuchen() {
+  const begriff = A.begriff;
+  if (begriff.length < 2) return;
+  const nr = ++A.anfrage;
+  const { data, error } = await sb.rpc("texte_suchen", { begriff, anzahl: 50 });
+  if (nr !== A.anfrage) return;               // inzwischen weitergetippt
+  if (error) { meldung("Die Suche hat nicht geklappt.", true); A.ergebnisse = []; }
+  else A.ergebnisse = data || [];
+  zeichneArchivListe();
+}
+
+$("#archiv-liste").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-archiv]");
+  if (b) oeffneArchivText(Number(b.dataset.archiv));
+});
+
+async function oeffneArchivText(id) {
+  const { data: t, error } = await sb.from("texte").select("id, datum, quelle, titel, text, link").eq("id", id).single();
+  if (error || !t) return meldung("Der Text konnte nicht geladen werden.", true);
+  A.offen = t;
+  A.scroll = window.scrollY;
+  const bz = t.quelle === "bz";
+  $("#archiv-text-quelle").textContent = `${langesDatum(t.datum)} · ${QUELLEN[t.quelle] || t.quelle}`;
+  $("#archiv-text-titel").textContent = t.titel;
+  const absaetze = (t.text || "").split(/\n{2,}/).map((x) => x.trim()).filter(Boolean);
+  $("#archiv-text-inhalt").innerHTML = absaetze.length
+    ? absaetze.map((x) => `<p>${esc(x).replace(/\n/g, "<br>")}</p>`).join("")
+    : `<p class="klein">Zu diesem Beitrag gibt es nur Bilder. Den Beitrag findest du über den Link.</p>`;
+  if (bz) $("#archiv-text-inhalt").insertAdjacentHTML("beforeend",
+    `<p class="klein">Der BZ-Artikel selbst ist urheberrechtlich geschützt und steht deshalb nicht im Archiv – oben steht nur unsere Kurzbeschreibung.</p>`);
+  $("#archiv-kopieren").hidden = bz || absaetze.length === 0;
+  const original = $("#archiv-original");
+  original.hidden = !t.link;
+  if (t.link) original.href = t.link;
+  original.textContent = bz ? "Bei der BZ lesen ↗" : t.quelle === "hallo" ? "Im E-Paper ansehen ↗" : "Original öffnen ↗";
+  $("#archiv-liste-bereich").hidden = true;
+  $("#archiv-text").hidden = false;
+  window.scrollTo(0, 0);
+}
+
+function schliesseArchivText() {
+  A.offen = null;
+  $("#archiv-text").hidden = true;
+  $("#archiv-liste-bereich").hidden = false;
+  window.scrollTo(0, A.scroll);
+}
+$("#archiv-text-zurueck").addEventListener("click", schliesseArchivText);
+$("#archiv-zurueck").addEventListener("click", () => {
+  if (A.offen) schliesseArchivText();
+  wechsleSeite("mehr");
+});
+$("#archiv-oeffnen").addEventListener("click", () => wechsleSeite("archiv"));
+
+$("#archiv-kopieren").addEventListener("click", async () => {
+  const t = A.offen;
+  if (!t) return;
+  const text = `${t.titel}\n\n${t.text.replace(/\n*\((Auch erschienen in „Hallo Bad Krozingen“[^)]*|Datum ungefähr)\)\s*$/, "").trim()}`;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = text; document.body.append(ta); ta.select();
+    document.execCommand("copy"); ta.remove();
+  }
+  meldung("Text kopiert.");
+});
 
 // ------------------------------------------------------------------
 //  Änderungsprotokoll (nur für Konten mit admin = true)

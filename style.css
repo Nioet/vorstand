@@ -841,3 +841,52 @@ dialog { border-radius: calc(var(--abstand) + 1.45rem); }
 /* Termin-Etikett wie das Projekt-Etikett: gleich groß und antippbar */
 .etikett.termin-etikett { font-size: .9rem; padding: .3rem .75rem; cursor: pointer; }
 .etikett.termin-etikett::after { content: " ›"; color: var(--grau); font-weight: 400; }
+
+/* =====================================================================
+   Archiv: ruhige Seite zum Suchen und Lesen früherer Texte
+   ===================================================================== */
+.archiv-zugang {
+  all: unset;
+  box-sizing: border-box;
+  display: block; width: 100%;
+  background: var(--weiss);
+  border-radius: calc(var(--r-innen) + 18px);
+  padding: 18px; margin-bottom: 1rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  cursor: pointer;
+}
+.archiv-zugang:active { background: #faf8f3; }
+.archiv-zugang:focus-visible { outline: 3px solid var(--grashalm); }
+.archiv-zugang-titel { display: block; font-size: 1.2rem; font-weight: 700; color: var(--tanne); margin-bottom: .2rem; }
+.archiv-zugang-titel::after { content: " ›"; color: var(--grau); font-weight: 400; }
+.archiv-zugang .klein { display: block; }
+
+.archiv-zurueck { padding-left: 0; padding-right: 0; min-height: 2.6rem; }
+.archiv-kopf { font-size: 1.5rem; color: var(--tanne); margin: .2rem 0 .7rem; }
+.archiv-suche { width: 100%; font-size: 1.15rem; min-height: 3.6rem; }
+.archiv-hinweis { margin: .9rem .2rem .4rem; }
+
+.archiv-liste { list-style: none; margin: 0; padding: 0; }
+.archiv-liste > li { margin-bottom: .6rem; }
+.archiv-liste > li.klein { padding: .6rem .2rem; }
+.archiv-eintrag {
+  all: unset; box-sizing: border-box;
+  display: block; width: 100%;
+  background: var(--weiss);
+  border-radius: var(--r-karte);
+  padding: var(--abstand) calc(var(--abstand) + 4px);
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  cursor: pointer;
+}
+.archiv-eintrag:active { background: #faf8f3; }
+.archiv-eintrag:focus-visible { outline: 3px solid var(--grashalm); }
+.archiv-quelle { display: block; font-size: .85rem; color: var(--grau); margin: 0 0 .15rem; }
+.archiv-titel { display: block; font-weight: 600; line-height: 1.3; }
+.archiv-auszug { display: block; font-size: .92rem; color: var(--grau); margin-top: .3rem; line-height: 1.4; }
+.archiv-auszug mark { background: var(--sonne); color: var(--text); padding: 0 .1em; border-radius: 3px; }
+
+.archiv-text h2 { font-size: 1.4rem; margin-bottom: .8rem; }
+.archiv-text .archiv-quelle { font-size: .9rem; }
+.archiv-inhalt { font-size: 1.15rem; line-height: 1.6; overflow-wrap: anywhere; }
+.archiv-inhalt p { margin: 0 0 .9rem; }
+.archiv-inhalt p.klein { font-size: .95rem; }
