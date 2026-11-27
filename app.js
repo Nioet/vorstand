@@ -597,6 +597,18 @@ function zumProjekt(id) {
   wechsleSeite("projekte");
   zeichneProjekte();
 }
+// Termin-Etiketten öffnen den Termin
+document.addEventListener("click", (e) => {
+  const link = e.target.closest("[data-zum-termin]");
+  if (!link) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const t = terminVon(link.dataset.zumTermin);
+  if (!t) return meldung("Diesen Termin gibt es nicht mehr.", true);
+  $$("dialog[open]").forEach((d) => d.close("abbrechen"));
+  oeffneTermin(t);
+}, true);
+
 document.addEventListener("click", (e) => {
   const link = e.target.closest("[data-zum-projekt]");
   if (!link) return;
@@ -715,7 +727,7 @@ function aufgabeHtml(a, { mitProjekt = true, liste = null } = {}) {
   const frist = fristText(a);
   const t = terminVon(a.termin_id);
   const etiketten = [
-    t ? `<span class="etikett termin-etikett">📅 ${esc(t.titel)} · ${esc(kurzesDatum(t.datum))}</span>` : "",
+    t ? `<span class="etikett termin-etikett" data-zum-termin="${t.id}" role="link" tabindex="0" title="Zum Termin">📅 ${esc(t.titel)} · ${esc(kurzesDatum(t.datum))}</span>` : "",
     mitProjekt ? projektEtikett(projektIdVonAufgabe(a)) : "",
   ].join("");
   return `<article class="aufgabe${a.status === "erledigt" ? " ist-erledigt" : ""}" data-id="${a.id}"${liste ? ` data-liste="${liste}"` : ""}>

@@ -837,3 +837,7 @@ dialog { border-radius: calc(var(--abstand) + 1.45rem); }
 .unterpunkte-bereich > :last-child, .rueck-bereich > :last-child,
 .rueck-liste > :last-child, #t-punkte-hinweis:last-child { margin-bottom: 0; }
 #t-punkte-hinweis:empty { display: none; }
+
+/* Termin-Etikett wie das Projekt-Etikett: gleich groß und antippbar */
+.etikett.termin-etikett { font-size: .9rem; padding: .3rem .75rem; cursor: pointer; }
+.etikett.termin-etikett::after { content: " ›"; color: var(--grau); font-weight: 400; }
