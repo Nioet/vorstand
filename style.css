@@ -822,3 +822,18 @@ dialog { border-radius: calc(var(--abstand) + 1.45rem); }
 /* Projekt-Etikett auf Karten: etwas größer und antippbar */
 .etikett.projekt-etikett { font-size: .9rem; padding: .3rem .75rem; cursor: pointer; }
 .etikett.projekt-etikett::after { content: " ›"; color: var(--grau); font-weight: 400; }
+
+/* Datumsquadrat der kleinen Streifen füllt die Höhe: oben, unten und links überall 8px zum Rand */
+.termin-extern { align-items: stretch; }
+.te-datum { align-self: stretch; display: flex; flex-direction: column; justify-content: center; }
+.te-text { align-self: center; }
+
+/* Link-Knopf „Auf der Website ansehen“: Text exakt mittig */
+.termin-info .ti-link {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 2.45rem; padding: 0 1rem; line-height: 1.2;
+}
+/* Kästen innen: unten derselbe Abstand wie oben und seitlich */
+.unterpunkte-bereich > :last-child, .rueck-bereich > :last-child,
+.rueck-liste > :last-child, #t-punkte-hinweis:last-child { margin-bottom: 0; }
+#t-punkte-hinweis:empty { display: none; }

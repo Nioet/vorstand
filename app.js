@@ -1053,7 +1053,7 @@ function zeichneUnterpunkte() {
         <button type="button" class="punkt-weg" data-entwurf-weg="${i}" aria-label="Entfernen">✕</button></li>`)
       .join("");
     $("#t-punkte-hinweis").textContent = entwurfPunkte.length
-      ? "Wer sich kümmert und bis wann: nach dem Speichern auf den Unterpunkt tippen."
+      ? "Wer sich kümmert und bis wann: nach dem Speichern auf die Aufgabe tippen."
       : "";
     return;
   }
@@ -1078,8 +1078,8 @@ function zeichneUnterpunkte() {
   $("#t-sortieren").classList.toggle("aktiv", punkteSortieren);
   $("#t-nach-datum").hidden = !punkteSortieren;
   $("#t-punkte-hinweis").textContent = punkte.length
-    ? "Tippe auf einen Unterpunkt, um festzulegen, wer ihn bis wann erledigt."
-    : "Noch keine Unterpunkte.";
+    ? "Tippe auf eine Aufgabe, um festzulegen, wer sie bis wann erledigt."
+    : "Noch keine Aufgaben.";
 }
 
 async function punktHinzufuegen() {
