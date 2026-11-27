@@ -109,7 +109,7 @@ begin
   t := regexp_replace(t, '[ \t ]+', ' ', 'g');
   t := regexp_replace(t, ' *\n *', E'\n', 'g');
   t := regexp_replace(t, E'\n{3,}', E'\n\n', 'g');
-  return trim(t);
+  return regexp_replace(t, '^\s+|\s+$', '', 'g');
 end;
 $$;
 revoke execute on function public.html_zu_text(text) from public, anon, authenticated;

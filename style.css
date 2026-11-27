@@ -890,3 +890,18 @@ dialog { border-radius: calc(var(--abstand) + 1.45rem); }
 .archiv-inhalt { font-size: 1.15rem; line-height: 1.6; overflow-wrap: anywhere; }
 .archiv-inhalt p { margin: 0 0 .9rem; }
 .archiv-inhalt p.klein { font-size: .95rem; }
+
+/* Archiv: Monate als kleine Zwischenüberschrift */
+.archiv-liste > li.archiv-monat {
+  margin: 1.1rem .2rem .45rem;
+  font-size: .85rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--grau);
+}
+.archiv-liste > li.archiv-monat:first-child { margin-top: .9rem; }
+#archiv-mehr { margin-top: .4rem; }
+
+/* App-Name oben führt zur Startseite */
+.kopf .app-titel { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+
+/* Kein Zoomen per Doppeltipp (Zwei-Finger-Zoom bleibt möglich) */
+html, body, button, a, input, select, textarea, label { touch-action: manipulation; }

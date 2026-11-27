@@ -9,6 +9,8 @@ const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
 const TITEL = cfg.titel || "Vorstand";
 document.title = TITEL;
 $$(".app-titel").forEach((h) => (h.textContent = TITEL));
+// Tipp auf den App-Namen oben führt zur Startseite (Termine)
+$(".kopf .app-titel").addEventListener("click", () => wechsleSeite("termine"));
 
 // ------------------------------------------------------------------
 //  Kleine Helfer
@@ -381,18 +383,35 @@ const QUELLEN = {
   hallo: "Hallo Bad Krozingen", website: "Website", presse: "Pressemitteilung",
   antrag: "Antrag / Rede", bz: "Badische Zeitung",
 };
-const A = { zuletzt: null, ergebnisse: null, begriff: "", anfrage: 0, offen: null, scroll: 0 };
+const A = { zuletzt: null, alleGeladen: false, laedt: false, ergebnisse: null, begriff: "", anfrage: 0, offen: null, scroll: 0 };
 const archivFelder = "id, datum, quelle, titel, link";
+const ARCHIV_SEITE = 20;
 
 async function archivStart() {
   if (A.offen) return;
   if (!A.zuletzt) {
     $("#archiv-liste").innerHTML = `<li class="klein">Wird geladen …</li>`;
-    const { data, error } = await sb.from("texte").select(archivFelder).order("datum", { ascending: false }).limit(10);
-    if (error) { $("#archiv-liste").innerHTML = `<li class="klein">Das Archiv konnte nicht geladen werden.</li>`; return; }
-    A.zuletzt = data;
+    await archivWeiterLaden();
   }
   zeichneArchivListe();
+}
+
+// Lädt die nächsten 20 Texte (neueste zuerst) für die Übersicht
+async function archivWeiterLaden() {
+  if (A.laedt || A.alleGeladen) return;
+  A.laedt = true;
+  const von = A.zuletzt ? A.zuletzt.length : 0;
+  const { data, error } = await sb.from("texte").select(archivFelder)
+    .order("datum", { ascending: false }).order("id", { ascending: false })
+    .range(von, von + ARCHIV_SEITE - 1);
+  A.laedt = false;
+  if (error) {
+    if (!A.zuletzt) $("#archiv-liste").innerHTML = `<li class="klein">Das Archiv konnte nicht geladen werden.</li>`;
+    else meldung("Weitere Texte konnten nicht geladen werden.", true);
+    return;
+  }
+  A.zuletzt = (A.zuletzt || []).concat(data);
+  if (data.length < ARCHIV_SEITE) A.alleGeladen = true;
 }
 
 function archivEintrag(t) {
@@ -408,11 +427,39 @@ function zeichneArchivListe() {
   const suche = A.begriff.length >= 2;
   const liste = suche ? A.ergebnisse : A.zuletzt;
   const hinweis = $("#archiv-hinweis");
-  if (!suche) hinweis.textContent = "Zuletzt erschienen";
-  else if (!liste) hinweis.textContent = "Suche läuft …";
+  hinweis.hidden = !suche;
+  if (!liste) hinweis.textContent = "Suche läuft …";
   else hinweis.textContent = liste.length === 0 ? "Nichts gefunden. Vielleicht mit einem anderen Wort?"
     : liste.length === 1 ? "1 Text gefunden" : `${liste.length >= 50 ? "Mehr als 50" : liste.length} Texte gefunden`;
-  $("#archiv-liste").innerHTML = (liste || []).map(archivEintrag).join("");
+  if (suche) {
+    $("#archiv-liste").innerHTML = (liste || []).map(archivEintrag).join("");
+  } else {
+    // Übersicht nach Datum: kleine Zwischenüberschrift für jeden Monat
+    let monat = "";
+    $("#archiv-liste").innerHTML = (liste || []).map((t) => {
+      const m = fmtMonat.format(alsDatum(t.datum));
+      const kopf = m !== monat ? `<li class="archiv-monat">${esc(m)}</li>` : "";
+      monat = m;
+      return kopf + archivEintrag(t);
+    }).join("");
+  }
+  $("#archiv-mehr").hidden = suche || !A.zuletzt || A.alleGeladen;
+}
+
+async function archivMehrZeigen() {
+  if (A.laedt || A.alleGeladen || A.begriff.length >= 2) return;
+  const knopf = $("#archiv-mehr");
+  knopf.textContent = "Wird geladen …";
+  await archivWeiterLaden();
+  knopf.textContent = "Weitere Texte laden";
+  zeichneArchivListe();
+}
+$("#archiv-mehr").addEventListener("click", archivMehrZeigen);
+// Lädt automatisch nach, sobald man unten angekommen ist
+if ("IntersectionObserver" in window) {
+  new IntersectionObserver((eintraege) => {
+    if (eintraege.some((e) => e.isIntersecting) && S.seite === "archiv" && !A.offen) archivMehrZeigen();
+  }, { rootMargin: "300px" }).observe($("#archiv-mehr"));
 }
 
 let archivTimer;
@@ -465,6 +512,7 @@ async function oeffneArchivText(id) {
   original.textContent = bz ? "Bei der BZ lesen ↗" : t.quelle === "hallo" ? "Im E-Paper ansehen ↗" : "Original öffnen ↗";
   $("#archiv-liste-bereich").hidden = true;
   $("#archiv-text").hidden = false;
+  $("#archiv-zurueck").textContent = "← Archiv";
   window.scrollTo(0, 0);
 }
 
@@ -472,12 +520,13 @@ function schliesseArchivText() {
   A.offen = null;
   $("#archiv-text").hidden = true;
   $("#archiv-liste-bereich").hidden = false;
+  $("#archiv-zurueck").textContent = "← Mehr";
   window.scrollTo(0, A.scroll);
 }
 $("#archiv-text-zurueck").addEventListener("click", schliesseArchivText);
 $("#archiv-zurueck").addEventListener("click", () => {
   if (A.offen) schliesseArchivText();
-  wechsleSeite("mehr");
+  else wechsleSeite("mehr");
 });
 $("#archiv-oeffnen").addEventListener("click", () => wechsleSeite("archiv"));
 
@@ -1552,6 +1601,18 @@ function zeitFeldUmschalten() {
 }
 $("#a-faellig").addEventListener("change", zeitFeldUmschalten);
 $("#a-faellig").addEventListener("input", zeitFeldUmschalten);
+
+// Gehört die Aufgabe zu einem Termin, öffnet sich die Datumsauswahl am Tag des Termins
+function fristVorbelegen() {
+  const feld = $("#a-faellig");
+  if (feld.value) return;
+  const t = terminVon($("#a-termin").value);
+  if (!t?.datum) return;
+  feld.value = t.datum;
+  zeitFeldUmschalten();
+}
+$("#a-faellig").addEventListener("pointerdown", fristVorbelegen);
+$("#a-faellig").addEventListener("focus", fristVorbelegen);
 
 function oeffneAufgabe(a = null, vorgabe = {}) {
   bearbeiteteAufgabe = a;
