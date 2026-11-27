@@ -957,3 +957,10 @@ html, body, button, a, input, select, textarea, label { touch-action: manipulati
 .schicht-anderer summary::-webkit-details-marker { display: none; }
 .schicht-anderer .zeile { margin-top: .3rem; align-items: stretch; }
 .schicht-anderer .zeile > .knopf { flex: 0 0 auto; min-height: 3rem; }
+
+/* Termin ansehen: Name als Überschrift, Datum direkt darunter, ohne Trennlinie */
+#dialog-termin.ansicht .dialog-kopf { border-bottom-color: transparent; align-items: flex-start; }
+#dialog-termin.ansicht #termin-ueberschrift { font-size: 1.35rem; line-height: 1.25; padding-top: .45rem; overflow-wrap: anywhere; }
+#dialog-termin.ansicht #termin-ueberschrift .marke { vertical-align: middle; font-size: .8rem; }
+#dialog-termin.ansicht .termin-info { margin-top: 0; }
+.termin-info .ti-art { margin: 0 0 .3rem; font-size: .9rem; font-weight: 600; color: var(--grau); }

@@ -70,6 +70,24 @@ document.addEventListener("click", (e) => {
   if (zu) zu.closest("dialog").close("abbrechen");
 });
 
+// Am Computer: Klick auf den abgedunkelten Hintergrund schließt das Fenster wie das X.
+// Nur wenn der Klick auch draußen begonnen hat (nicht beim Markieren von Text im Fenster).
+let klickStart = null;
+const ausserhalb = (dialog, e) => {
+  const r = dialog.getBoundingClientRect();
+  return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+};
+document.addEventListener("pointerdown", (e) => {
+  klickStart = e.target instanceof HTMLDialogElement && e.pointerType === "mouse" && ausserhalb(e.target, e) ? e.target : null;
+});
+document.addEventListener("click", (e) => {
+  const d = e.target;
+  if (!(d instanceof HTMLDialogElement) || !d.open || klickStart !== d || !ausserhalb(d, e)) return;
+  klickStart = null;
+  const x = d.querySelector("[data-schliessen]");
+  if (x) x.click(); else d.close("abbrechen");
+});
+
 function zeige(id) {
   for (const x of ["laden", "anmeldung", "app"]) $("#" + x).hidden = x !== id;
 }
@@ -1307,9 +1325,10 @@ function setzeTerminModus(modus) {
   const t = bearbeiteterTermin;
   const ansicht = modus === "ansicht" && !!t;
   const importiert = !!t?.quelle;
-  $("#termin-ueberschrift").textContent = ansicht
-    ? (importiert ? "Termin vom Kreisverband" : t.extern ? "Externer Termin" : "Termin")
-    : importiert ? "Kreistermin ergänzen" : t ? "Termin bearbeiten" : "Neuer Termin";
+  // In der Ansicht steht der Name des Termins oben, direkt darunter Datum und Ort
+  if (ansicht) $("#termin-ueberschrift").innerHTML = `${esc(t.titel)} ${relMarke(t.datum)}`;
+  else $("#termin-ueberschrift").textContent = importiert ? "Kreistermin ergänzen" : t ? "Termin bearbeiten" : "Neuer Termin";
+  dT.classList.toggle("ansicht", ansicht);
   $("#t-info").hidden = !(ansicht || importiert);
   if (ansicht || importiert) $("#t-info").innerHTML = importiert ? terminInfo(t, ansicht) : terminUebersicht(t);
   $("#t-felder").hidden = ansicht || importiert;
@@ -1340,7 +1359,7 @@ function terminUebersicht(t) {
   const datum = t.bis_datum && t.bis_datum !== t.datum ? `${langesDatum(t.datum)} bis ${langesDatum(t.bis_datum)}` : langesDatum(t.datum);
   const zeit = t.start_zeit ? (t.end_zeit ? `${uhr(t.start_zeit)}–${uhr(t.end_zeit)}\u00a0Uhr` : `${uhr(t.start_zeit)}\u00a0Uhr`) : "";
   const wer = t.extern ? nameVon(t.zustaendig) : "";
-  return `<h3 class="ti-titel">${esc(t.titel)} ${relMarke(t.datum)}</h3>
+  return `${t.extern ? `<p class="ti-art">Externer Termin</p>` : ""}
     <p class="ti-zeile">📅 ${bloecke([esc(datum), zeit])}</p>
     ${t.ort ? `<p class="ti-zeile">📍 ${esc(t.ort)}</p>` : ""}
     ${wer ? `<p class="ti-zeile">👤 übernimmt: ${esc(wer)}</p>` : ""}
@@ -1469,7 +1488,7 @@ $("#t-extern").addEventListener("change", externUmschalten);
 function terminInfo(t, ansicht = false) {
   const datum = t.bis_datum && t.bis_datum !== t.datum ? `${langesDatum(t.datum)} bis ${langesDatum(t.bis_datum)}` : langesDatum(t.datum);
   const zeit = t.start_zeit ? (t.end_zeit ? `${uhr(t.start_zeit)}–${uhr(t.end_zeit)}\u00a0Uhr` : `${uhr(t.start_zeit)}\u00a0Uhr`) : "";
-  return `<h3 class="ti-titel">${esc(t.titel)}</h3>
+  return `${ansicht ? `<p class="ti-art">Termin vom Kreisverband</p>` : `<h3 class="ti-titel">${esc(t.titel)}</h3>`}
     <p class="ti-zeile">📅 ${bloecke([esc(datum), zeit])}</p>
     ${t.ort ? `<p class="ti-zeile">📍 ${esc(t.ort)}</p>` : ""}
     ${t.beschreibung ? `<p class="ti-text">${esc(t.beschreibung)}</p>` : ""}
