@@ -976,7 +976,9 @@ html, body, button, a, input, select, textarea, label { touch-action: manipulati
   border-radius: 0;
   height: 2.1rem;
   /* früherer grauer Balkengrund, zu 70 % mit Weiß aufgehellt (statt Trennlinie) */
-  background: #f5f2ed;
+  /* liegt zwischen Kartenfarbe und Seitenhintergrund: Seitenhintergrund zu 55 % mit Weiß aufgehellt */
+  background: #fbf9f5;
+  background: color-mix(in srgb, var(--sand) 45%, var(--weiss));
 }
 .termin > .fortschritt-text > .fuellung,
 .projekt-karte > .fortschritt-text > .fuellung { background: #a6cf4f; }
@@ -1033,7 +1035,7 @@ html, body, button, a, input, select, textarea, label { touch-action: manipulati
 .schicht-name-zeile > .knopf { flex: 0 0 auto; }
 
 /* Projekte in Planung: Balkengrund etwas dunkler, damit er sich von der Karte abhebt */
-.projekt-karte.ist-planung > .fortschritt-text { background: #ece7de; }
+.projekt-karte.ist-planung > .fortschritt-text { background: #f8f6f0; background: color-mix(in srgb, var(--sand) 45%, #fbfaf5); }
 
 /* Überschrift mit Sortier-Knopf rechts daneben */
 .bereich-kopf { display: flex; align-items: center; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
