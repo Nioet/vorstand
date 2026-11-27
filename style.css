@@ -905,3 +905,35 @@ dialog { border-radius: calc(var(--abstand) + 1.45rem); }
 
 /* Kein Zoomen per Doppeltipp (Zwei-Finger-Zoom bleibt möglich) */
 html, body, button, a, input, select, textarea, label { touch-action: manipulation; }
+
+/* =====================================================================
+   Schichten (z. B. Infostand)
+   ===================================================================== */
+.schichten-bereich { margin: .6rem 0 .4rem; padding: var(--abstand); background: var(--sand); border-radius: var(--r-karte); }
+.schichten-bereich h3 { font-size: 1.05rem; margin: 0 0 .2rem; }
+.schichten-ansicht { list-style: none; margin: 0; padding: 0; }
+.schichten-ansicht > li { padding: .75rem 0; border-top: 1px solid var(--linie); }
+.schichten-ansicht > li:first-child { border-top: none; padding-top: .4rem; }
+.schichten-ansicht > li:last-child { padding-bottom: 0; }
+.schichten-ansicht > li.klein { padding: .3rem 0 0; }
+.schicht-kopf { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+.schicht-kopf strong { font-size: 1.1rem; }
+.schicht-frei { font-size: .9rem; color: var(--klee); font-weight: 600; }
+.schicht.voll .schicht-frei { color: var(--grau); }
+.schicht-namen { margin: .15rem 0 .5rem; font-size: .95rem; color: var(--text); }
+.schicht .knopf.breit { margin-top: 0; min-height: 3rem; }
+.schicht .knopf.gewaehlt { background: #e3efe0; color: var(--tanne); border-color: var(--tanne); }
+
+/* Bearbeiten: eine Zeile je Schicht */
+#t-schichten-schalter .haken { margin-top: .9rem; }
+.schichten-edit { margin: .3rem 0 .2rem; padding: 10px; background: var(--sand); border-radius: calc(var(--r-innen) + 10px); }
+.schicht-zeile { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 3.7rem 2.4rem; gap: .35rem; align-items: center; margin-bottom: .45rem; }
+.schicht-zeile input, .schicht-zeile select { min-width: 0; width: 100%; padding: .55rem .35rem; min-height: 2.8rem; font-size: 1rem; }
+.schicht-kopfzeile { margin-bottom: .15rem; font-size: .85rem; color: var(--grau); font-weight: 600; }
+.schicht-kopfzeile span { padding-left: .2rem; }
+.schicht-weg {
+  width: 2.4rem; height: 2.4rem; border-radius: 50%;
+  border: 1.5px solid var(--linie); background: var(--weiss); color: var(--grau);
+  font: inherit; font-size: 1rem; cursor: pointer;
+}
+.schichten-edit #t-schicht-dazu { margin-top: .2rem; }

@@ -212,9 +212,6 @@
         <h2 id="termin-ueberschrift">Neuer Termin</h2>
         <button type="button" class="dialog-zu" data-schliessen autofocus aria-label="Schließen">✕</button>
       </div>
-      <div id="t-info" class="termin-info" hidden></div>
-      <div id="t-aufgaben-oben"></div>
-
       <div id="t-rueck" class="rueck-bereich" hidden>
         <div class="rueck-knoepfe">
           <button type="button" class="knopf" data-rueck="ja">✓ Bin dabei</button>
@@ -222,6 +219,14 @@
         </div>
         <div id="t-rueck-liste" class="rueck-liste"></div>
       </div>
+
+      <div id="t-schichten" class="schichten-bereich" hidden>
+        <h3>Schichten</h3>
+        <ul id="t-schichten-ansicht" class="schichten-ansicht"></ul>
+      </div>
+
+      <div id="t-info" class="termin-info" hidden></div>
+      <div id="t-aufgaben-oben"></div>
 
       <div id="t-felder">
       <label for="t-titel">Was?</label>
@@ -243,6 +248,15 @@
         <label for="t-bis">Letzter Tag</label>
         <input id="t-bis" type="date">
       </details>
+
+      <div id="t-schichten-schalter">
+        <label class="haken"><input id="t-mit-schichten" type="checkbox"> Mit Schichten (z. B. Infostand)</label>
+        <div id="t-schichten-edit" class="schichten-edit" hidden>
+          <div class="schicht-zeile schicht-kopfzeile" aria-hidden="true"><span>Von</span><span>Bis</span><span>Plätze</span><span></span></div>
+          <div id="t-schichten-liste"></div>
+          <button type="button" id="t-schicht-dazu" class="knopf klein">＋ Weitere Schicht</button>
+        </div>
+      </div>
 
       <label for="t-ort">Wo?</label>
       <input id="t-ort" placeholder="Ort oder Video-Link">

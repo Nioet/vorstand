@@ -22,6 +22,7 @@ export type Termin = {
   extern?: boolean;
   wer?: string | null;        // bei externen Terminen: wer von uns übernimmt
   unterpunkte?: { titel: string; erledigt: boolean; wer: string | null; faellig: string | null; zeit?: string | null }[];
+  schichten?: string[];       // z. B. "10–12 Uhr: Nils, Almut (noch 1 frei)"
 };
 
 export type Aufgabe = {
@@ -142,6 +143,7 @@ function terminZuEvent(t: Termin, jetzt: string, domain: string, appUrl?: string
   });
   const text = [
     t.extern ? `Externer Termin${t.wer ? ` – übernimmt: ${t.wer}` : ""}` : null,
+    t.schichten?.length ? `Schichten:\n${t.schichten.join("\n")}` : null,
     t.beschreibung,
     t.projekt_name ? `Projekt: ${t.projekt_name}` : null,
     punkte.length ? `Unterpunkte:\n${punkte.join("\n")}` : null,
@@ -266,16 +268,17 @@ async function antworte(req: Request): Promise<Response> {
 
   // Termine ab einem halben Jahr zurück
   const ab = new Date(Date.now() - 183 * 24 * 3600 * 1000).toISOString().slice(0, 10);
-  type TerminRoh = Termin & { projekt_id: string | null; zustaendig: string | null; quelle: string | null };
+  type TerminRoh = Termin & { projekt_id: string | null; zustaendig: string | null; quelle: string | null; mit_schichten?: boolean };
   type AufgabeRoh = Omit<Aufgabe, "zustaendig_name"> & {
     termin_id: string | null;
     projekt_id: string | null;
     zustaendig: string | null;
     zustaendig_extern: string | null;
   };
-  const [termineRoh, aufgabenRoh, projekte, profile] = await Promise.all([
+  type SchichtRoh = { id: string; termin_id: string; start_zeit: string; end_zeit: string; plaetze: number };
+  const [termineRoh, aufgabenRoh, projekte, profile, schichtenRoh, eintraegeRoh] = await Promise.all([
     lies<TerminRoh[]>(
-      `termine?select=id,titel,datum,bis_datum,start_zeit,end_zeit,ort,beschreibung,updated_at,projekt_id,extern,zustaendig,quelle` +
+      `termine?select=id,titel,datum,bis_datum,start_zeit,end_zeit,ort,beschreibung,updated_at,projekt_id,extern,zustaendig,quelle,mit_schichten` +
         `&or=(datum.gte.${ab},bis_datum.gte.${ab})&order=datum`,
     ),
     // offene Aufgaben + alle Unterpunkte (auch erledigte, für die Checkliste)
@@ -285,6 +288,8 @@ async function antworte(req: Request): Promise<Response> {
     ),
     lies<{ id: string; name: string }[]>("projekte?select=id,name"),
     lies<Person[]>("profiles?select=id,name,email"),
+    lies<SchichtRoh[]>("schichten?select=id,termin_id,start_zeit,end_zeit,plaetze&order=start_zeit").catch(() => [] as SchichtRoh[]),
+    lies<{ schicht_id: string; person: string }[]>("schicht_eintraege?select=schicht_id,person&order=created_at").catch(() => [] as { schicht_id: string; person: string }[]),
   ]);
   const namen = anzeigeNamen(profile);
   const projektName = new Map(projekte.map((p) => [p.id, p.name]));
@@ -300,6 +305,12 @@ async function antworte(req: Request): Promise<Response> {
     unterpunkte: aufgabenRoh
       .filter((a) => a.termin_id === t.id)
       .map((a) => ({ titel: a.titel, erledigt: a.status === "erledigt", wer: werVon(a), faellig: a.faellig, zeit: a.faellig_zeit ?? null })),
+    schichten: t.mit_schichten ? schichtenRoh.filter((x) => x.termin_id === t.id).map((x) => {
+      const leute = eintraegeRoh.filter((e) => e.schicht_id === x.id).map((e) => namen.get(e.person) ?? "?");
+      const frei = x.plaetze - leute.length;
+      const zeit = `${kurzUhr(x.start_zeit)}–${kurzUhr(x.end_zeit)} Uhr`;
+      return `${zeit}: ${leute.length ? leute.join(", ") : "noch niemand"}${frei > 0 ? ` (noch ${frei} frei)` : ""}`;
+    }) : [],
   }));
 
   const zumTeilen = passend.id === 2;
@@ -350,6 +361,11 @@ async function antworte(req: Request): Promise<Response> {
   });
 
   return kalenderAntwort(ics);
+}
+
+// "09:00:00" → "9", "09:30:00" → "9:30"
+function kurzUhr(z: string): string {
+  return z.slice(0, 5).replace(/^0/, "").replace(/:00$/, "");
 }
 
 function kalenderAntwort(ics: string): Response {

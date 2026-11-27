@@ -105,6 +105,8 @@ const S = {
   aufgaben: [],
   projekte: [],
   rueckmeldungen: [],
+  schichten: [],
+  schichtEintraege: [],
   aboToken: null,
   aboTokenTeilen: null,
   zeitraum: "kommend",
@@ -254,15 +256,19 @@ async function ladeProfile() {
 }
 
 async function ladeInhalte() {
-  const [t, a, p, r] = await Promise.all([
+  const [t, a, p, r, sc, se] = await Promise.all([
     sb.from("termine").select("*").order("datum").order("start_zeit", { nullsFirst: true }),
     sb.from("aufgaben").select("*").order("position", { nullsFirst: false }).order("created_at"),
     sb.from("projekte").select("*").order("name"),
     sb.from("rueckmeldungen").select("termin_id,person,dabei"),
+    sb.from("schichten").select("id,termin_id,start_zeit,end_zeit,plaetze").order("start_zeit"),
+    sb.from("schicht_eintraege").select("schicht_id,person,created_at").order("created_at"),
   ]);
-  // Rückmeldungen sind Zusatz: Fehlt die Tabelle o. Ä., läuft der Rest trotzdem
+  // Rückmeldungen und Schichten sind Zusatz: Fehlt eine Tabelle o. Ä., läuft der Rest trotzdem
   S.rueckmeldungen = r.error ? [] : r.data;
-  if (r.error) console.error(r.error);
+  S.schichten = sc.error ? [] : sc.data;
+  S.schichtEintraege = se.error ? [] : se.data;
+  for (const x of [r, sc, se]) if (x.error) console.error(x.error);
   if (t.error) throw t.error;
   if (a.error) throw a.error;
   if (p.error) throw p.error;
@@ -349,6 +355,8 @@ function starteLive() {
     .on("postgres_changes", { event: "*", schema: "public", table: "aufgaben" }, nachladen)
     .on("postgres_changes", { event: "*", schema: "public", table: "projekte" }, nachladen)
     .on("postgres_changes", { event: "*", schema: "public", table: "rueckmeldungen" }, nachladen)
+    .on("postgres_changes", { event: "*", schema: "public", table: "schichten" }, nachladen)
+    .on("postgres_changes", { event: "*", schema: "public", table: "schicht_eintraege" }, nachladen)
     .subscribe();
 }
 function stoppeLive() {
@@ -551,7 +559,7 @@ const FELDNAMEN = {
   titel: "Titel", name: "Name", datum: "Datum", bis_datum: "Enddatum", start_zeit: "Uhrzeit", end_zeit: "Uhrzeit",
   ort: "Ort", beschreibung: "Notiz", projekt_id: "Projekt", zustaendig: "Zuständig", zustaendig_extern: "Zuständig",
   faellig: "Frist", faellig_zeit: "Frist", termin_id: "Termin", status: "Status", extern: "extern", gehoert_zu: "Verknüpfung",
-  abgeschlossen: "abgeschlossen", in_planung: "in Planung", link: "Link",
+  abgeschlossen: "abgeschlossen", in_planung: "in Planung", link: "Link", mit_schichten: "Schichten",
 };
 const ARTIKEL = { Termin: "den Termin", Aufgabe: "die Aufgabe", Unterpunkt: "den Unterpunkt", Projekt: "das Projekt" };
 
@@ -561,6 +569,9 @@ function protokollSatz(e) {
   if (e.art === "Rückmeldung") {
     const was = { zugesagt: "zugesagt", abgesagt: "abgesagt", "zurückgenommen": "die Rückmeldung zurückgenommen" }[e.aktion] || e.aktion;
     return e.aktion === "zurückgenommen" ? `${wer} hat bei ${titel} ${was}` : `${wer} hat für ${titel} ${was}`;
+  }
+  if (e.art === "Schicht") {
+    return `${wer} hat sich bei ${titel}${e.kontext ? ` für ${e.kontext}` : ""} ${e.aktion === "eingetragen" ? "eingetragen" : "ausgetragen"}`;
   }
   const anzahl = e.anzahl > 1;
   const objekt = anzahl
@@ -581,7 +592,7 @@ function protokollBuendeln(liste) {
   const aus = [];
   for (const e of liste) {
     const v = aus[aus.length - 1];
-    if (v && e.art !== "Rückmeldung" && v.art === e.art && v.aktion === e.aktion && v.person === e.person &&
+    if (v && e.art !== "Rückmeldung" && e.art !== "Schicht" && v.art === e.art && v.aktion === e.aktion && v.person === e.person &&
         v.kontext === e.kontext && v.aktion !== "geändert" &&
         Math.abs(new Date(v.zeit) - new Date(e.zeit)) < 120000) {
       v.anzahl = (v.anzahl || 1) + 1;
@@ -595,7 +606,7 @@ let protokollEintraege = [];
 // Eintrag aus dem Protokoll öffnen
 function oeffneAusProtokoll(e) {
   const weg = () => meldung("Das gibt es inzwischen nicht mehr.", true);
-  if (e.art === "Termin" || e.art === "Rückmeldung") {
+  if (e.art === "Termin" || e.art === "Rückmeldung" || e.art === "Schicht") {
     const t = terminVon(e.objekt_id);
     return t ? oeffneTermin(t) : weg();
   }
@@ -831,11 +842,181 @@ function rueckBloecke(terminId) {
     r.nicht.length ? `<span class="rz nein">✗</span>\u00a0${esc(namenListe(r.nicht).join(", "))}` : "",
   ];
 }
+// ------------------------------------------------------------------
+//  Schichten (z. B. Infostand): Zeitblöcke mit festen Plätzen
+// ------------------------------------------------------------------
+const schichtenVon = (terminId) =>
+  S.schichten.filter((x) => x.termin_id === terminId).sort((a, b) => a.start_zeit.localeCompare(b.start_zeit) || a.end_zeit.localeCompare(b.end_zeit));
+const eintraegeVon = (schichtId) => S.schichtEintraege.filter((e) => e.schicht_id === schichtId).map((e) => e.person);
+const schichtZeit = (x) => `${uhr(x.start_zeit)}–${uhr(x.end_zeit)}\u00a0Uhr`;
+const kurzeZeit = (z) => (z || "").slice(0, 5).replace(/^0/, "").replace(/:00$/, "");
+
+// Für die Karten: „👥 noch 3 Plätze frei · ich: 10–12 Uhr“
+function schichtKartenText(terminId) {
+  const liste = schichtenVon(terminId);
+  if (!liste.length) return "";
+  const frei = liste.reduce((n, x) => n + Math.max(0, x.plaetze - eintraegeVon(x.id).length), 0);
+  const meine = liste.filter((x) => eintraegeVon(x.id).includes(S.userId))
+    .map((x) => `${kurzeZeit(x.start_zeit)}–${kurzeZeit(x.end_zeit)}`);
+  return bloecke([
+    frei ? `👥 noch ${frei} ${frei === 1 ? "Platz" : "Plätze"} frei` : "👥 alle Schichten besetzt",
+    meine.length ? `<span class="rz ja">✓</span>\u00a0ich: ${esc(meine.join(", "))}\u00a0Uhr` : "",
+  ]);
+}
+
+function zeichneSchichtenAnsicht(t) {
+  const zeigen = !!t && terminModus === "ansicht" && !!t.mit_schichten;
+  $("#t-schichten").hidden = !zeigen;
+  if (!zeigen) return;
+  const liste = schichtenVon(t.id);
+  if (!liste.length) {
+    $("#t-schichten-ansicht").innerHTML = `<li class="klein">Noch keine Schichten angelegt. Über „Termin bearbeiten“ hinzufügen.</li>`;
+    return;
+  }
+  $("#t-schichten-ansicht").innerHTML = liste.map((x) => {
+    const leute = eintraegeVon(x.id);
+    const dabei = leute.includes(S.userId);
+    const frei = x.plaetze - leute.length;
+    const status = frei > 0 ? `noch ${frei} ${frei === 1 ? "Platz" : "Plätze"} frei` : "voll";
+    const knopf = dabei
+      ? `<button type="button" class="knopf breit gewaehlt" data-schicht="${x.id}" aria-pressed="true">✓ Ich bin dabei</button>`
+      : frei > 0
+        ? `<button type="button" class="knopf haupt breit" data-schicht="${x.id}" aria-pressed="false">Ich bin dabei</button>`
+        : `<button type="button" class="knopf breit" disabled>Schicht ist voll</button>`;
+    return `<li class="schicht${frei <= 0 ? " voll" : ""}${dabei ? " meine" : ""}">
+      <div class="schicht-kopf"><strong>${esc(schichtZeit(x))}</strong><span class="schicht-frei">${status}</span></div>
+      <p class="schicht-namen">${leute.length ? esc(namenListe(leute).join(", ")) : "Noch niemand eingetragen"}</p>
+      ${knopf}
+    </li>`;
+  }).join("");
+}
+
+$("#t-schichten-ansicht").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-schicht]");
+  const t = bearbeiteterTermin;
+  if (!b || !t) return;
+  const x = S.schichten.find((s) => s.id === b.dataset.schicht);
+  if (!x) return;
+  const dabei = eintraegeVon(x.id).includes(S.userId);
+  if (dabei && !confirm(`Aus der Schicht ${schichtZeit(x)} austragen?`)) return;
+  b.disabled = true;
+  const alt = S.schichtEintraege;
+  let ergebnis;
+  if (dabei) {
+    S.schichtEintraege = alt.filter((y) => !(y.schicht_id === x.id && y.person === S.userId));
+    ergebnis = await sb.from("schicht_eintraege").delete().eq("schicht_id", x.id).eq("person", S.userId);
+  } else {
+    S.schichtEintraege = alt.concat([{ schicht_id: x.id, person: S.userId, created_at: new Date().toISOString() }]);
+    ergebnis = await sb.from("schicht_eintraege").insert({ schicht_id: x.id, person: S.userId });
+  }
+  if (ergebnis.error) {
+    console.error(ergebnis.error);
+    S.schichtEintraege = alt;
+    const voll = /voll/.test(ergebnis.error.message || "") || ergebnis.error.hint === "schicht_voll";
+    meldung(voll ? "Diese Schicht ist inzwischen voll." : "Das hat nicht geklappt.", true);
+    if (voll) await neuLadenUndZeichnen();
+  } else {
+    meldung(dabei ? "Ausgetragen." : `Eingetragen: ${schichtZeit(x)}.`);
+  }
+  zeichneSchichtenAnsicht(terminVon(t.id) || t);
+  zeichneAlles();
+});
+
+// Bearbeiten: Schichten als Entwurf, gespeichert wird mit dem Termin
+let entwurfSchichten = [];
+const minuten = (z) => { const [h, m] = (z || "0:0").split(":").map(Number); return h * 60 + m; };
+const alsZeit = (n) => `${pad(Math.floor(Math.min(n, 1439) / 60))}:${pad(Math.min(n, 1439) % 60)}`;
+
+function neueSchicht() {
+  const letzte = entwurfSchichten[entwurfSchichten.length - 1];
+  if (letzte) {
+    const dauer = Math.max(30, minuten(letzte.end_zeit) - minuten(letzte.start_zeit));
+    return { id: null, start_zeit: letzte.end_zeit, end_zeit: alsZeit(minuten(letzte.end_zeit) + dauer), plaetze: letzte.plaetze };
+  }
+  const start = $("#t-start").value || "10:00";
+  const ende = $("#t-ende").value;
+  const bis = ende && minuten(ende) > minuten(start) ? Math.min(minuten(ende), minuten(start) + 120) : minuten(start) + 120;
+  return { id: null, start_zeit: start, end_zeit: alsZeit(bis), plaetze: 2 };
+}
+
+function zeichneSchichtenEdit() {
+  const an = $("#t-mit-schichten").checked;
+  $("#t-schichten-edit").hidden = !an;
+  if (!an) return;
+  const optionen = (n) => Array.from({ length: 10 }, (_, i) => i + 1).concat(n > 10 ? [n] : [])
+    .map((k) => `<option value="${k}"${k === n ? " selected" : ""}>${k}</option>`).join("");
+  $("#t-schichten-liste").innerHTML = entwurfSchichten.map((x, i) => `<div class="schicht-zeile" data-index="${i}">
+      <input type="time" data-feld="start_zeit" value="${esc(uhr(x.start_zeit))}" aria-label="Schicht ${i + 1} von" required>
+      <input type="time" data-feld="end_zeit" value="${esc(uhr(x.end_zeit))}" aria-label="Schicht ${i + 1} bis" required>
+      <select data-feld="plaetze" aria-label="Plätze in Schicht ${i + 1}">${optionen(x.plaetze)}</select>
+      <button type="button" class="schicht-weg" data-weg="${i}" aria-label="Schicht ${i + 1} entfernen">✕</button>
+    </div>`).join("");
+}
+$("#t-mit-schichten").addEventListener("change", () => {
+  if ($("#t-mit-schichten").checked && !entwurfSchichten.length) entwurfSchichten.push(neueSchicht());
+  zeichneSchichtenEdit();
+});
+$("#t-schicht-dazu").addEventListener("click", () => { entwurfSchichten.push(neueSchicht()); zeichneSchichtenEdit(); });
+function schichtFeldGeaendert(e) {
+  const zeile = e.target.closest("[data-index]");
+  if (!zeile || !e.target.dataset.feld) return;
+  const x = entwurfSchichten[Number(zeile.dataset.index)];
+  x[e.target.dataset.feld] = e.target.dataset.feld === "plaetze" ? Number(e.target.value) : e.target.value;
+}
+$("#t-schichten-liste").addEventListener("input", schichtFeldGeaendert);
+$("#t-schichten-liste").addEventListener("change", schichtFeldGeaendert);
+$("#t-schichten-liste").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-weg]");
+  if (!b) return;
+  const x = entwurfSchichten[Number(b.dataset.weg)];
+  const n = x.id ? eintraegeVon(x.id).length : 0;
+  if (n && !confirm(`In dieser Schicht ${n === 1 ? "ist schon jemand" : `sind schon ${n} Personen`} eingetragen. Trotzdem entfernen?`)) return;
+  entwurfSchichten.splice(Number(b.dataset.weg), 1);
+  if (!entwurfSchichten.length) $("#t-mit-schichten").checked = false;
+  zeichneSchichtenEdit();
+});
+
+// Prüft den Entwurf vor dem Speichern; gibt eine Fehlermeldung oder "" zurück
+function schichtenPruefen(mitSchichten) {
+  if (!mitSchichten) return "";
+  for (const x of entwurfSchichten) {
+    if (!x.start_zeit || !x.end_zeit) return "Bitte bei jeder Schicht Beginn und Ende eintragen.";
+    if (minuten(x.end_zeit) <= minuten(x.start_zeit)) return `Die Schicht ${uhr(x.start_zeit)} Uhr endet vor ihrem Beginn.`;
+  }
+  return "";
+}
+
+// Speichert den Entwurf: Entferntes löschen, Geändertes ändern, Neues anlegen
+async function schichtenSpeichern(terminId, mitSchichten) {
+  const vorher = schichtenVon(terminId);
+  const bleiben = mitSchichten ? entwurfSchichten : [];
+  const fehler = [];
+  for (const x of vorher) {
+    if (!bleiben.some((y) => y.id === x.id)) {
+      const { error } = await sb.from("schichten").delete().eq("id", x.id);
+      if (error) fehler.push(error);
+    }
+  }
+  for (const y of bleiben) {
+    const zeile = { start_zeit: y.start_zeit, end_zeit: y.end_zeit, plaetze: y.plaetze };
+    if (y.id) {
+      const x = vorher.find((v) => v.id === y.id);
+      if (x && uhr(x.start_zeit) === uhr(y.start_zeit) && uhr(x.end_zeit) === uhr(y.end_zeit) && x.plaetze === y.plaetze) continue;
+      const { error } = await sb.from("schichten").update(zeile).eq("id", y.id);
+      if (error) fehler.push(error);
+    } else {
+      const { error } = await sb.from("schichten").insert({ ...zeile, termin_id: terminId });
+      if (error) fehler.push(error);
+    }
+  }
+  if (fehler.length) { console.error(fehler); meldung("Termin gespeichert, aber die Schichten nicht vollständig.", true); }
+}
+
 const namenListe = (ids) => ids.map((id) => nameVon(id) + (id === S.userId ? " (ich)" : "")).sort((x, y) => x.localeCompare(y, "de"));
 
 function terminKarte(t, { mitMarke = true, mitProjekt = true } = {}) {
   if (t.extern) return externKarte(t);
-  const rueckText = bloecke(rueckBloecke(t.id));
+  const rueckText = t.mit_schichten ? schichtKartenText(t.id) : bloecke(rueckBloecke(t.id));
   const h = heute();
   const laeuft = t.datum <= h && (t.bis_datum || t.datum) >= h;
   const punkte = unterpunkteVon(t.id);
@@ -1033,6 +1214,9 @@ function oeffneTermin(t = null, vorgabe = {}, modus = t ? "ansicht" : "bearbeite
   eigeneTerminOptionen(t);
   externUmschalten();
   zeichneVerknuepfte(t);
+  entwurfSchichten = t ? schichtenVon(t.id).map((x) => ({ ...x, start_zeit: uhr(x.start_zeit), end_zeit: uhr(x.end_zeit) })) : [];
+  $("#t-mit-schichten").checked = !!t?.mit_schichten;
+  zeichneSchichtenEdit();
   zeichneRueckmeldung(t);
   $("#t-titel").value = t?.titel || "";
   $("#t-datum").value = t?.datum || heute();
@@ -1105,7 +1289,9 @@ function projektLink(id) {
 }
 
 function zeichneRueckmeldung(t) {
-  $("#t-rueck").hidden = !t || terminModus !== "ansicht";
+  // Termine mit Schichten: dort trägt man sich direkt in eine Schicht ein
+  zeichneSchichtenAnsicht(t);
+  $("#t-rueck").hidden = !t || terminModus !== "ansicht" || !!t.mit_schichten;
   if (!t) return;
   const r = rueckVon(t.id);
   $$("[data-rueck]").forEach((b) => {
@@ -1147,6 +1333,7 @@ $("#t-rueck").addEventListener("click", async (e) => {
 function externUmschalten() {
   const ansicht = terminModus === "ansicht" && !!bearbeiteterTermin;
   $("#t-wer-bereich").hidden = ansicht || !$("#t-extern").checked;
+  $("#t-schichten-schalter").hidden = $("#t-extern").checked;
   $("#t-uebernehmen").hidden = !(ansicht && bearbeiteterTermin?.extern && !istVerknuepft(bearbeiteterTermin));
   // Ein Termin, der selbst externe Termine sammelt, wird nicht seinerseits verknüpft
   $("#t-verknuepft").hidden = !ansicht || $("#t-extern").checked || !verknuepfteVon(bearbeiteterTermin.id).length;
@@ -1352,18 +1539,32 @@ dT.addEventListener("close", async () => {
 
   const titel = $("#t-titel").value.trim() || projektVon($("#t-projekt").value)?.name || "";
   if (!titel) { meldung("Bitte gib dem Termin einen Titel.", true); return wiederOeffnen(dT); }
+  const mitSchichten = !extern && $("#t-mit-schichten").checked && entwurfSchichten.length > 0;
+  const schichtFehler = schichtenPruefen(mitSchichten);
+  if (schichtFehler) { meldung(schichtFehler, true); return wiederOeffnen(dT); }
+  if (bearbeiteterTermin && !mitSchichten) {
+    const belegt = schichtenVon(bearbeiteterTermin.id).reduce((n, x) => n + eintraegeVon(x.id).length, 0);
+    if (belegt && !confirm(`Die Schichten werden entfernt, obwohl sich schon ${belegt === 1 ? "jemand eingetragen hat" : `${belegt} Personen eingetragen haben`}. Trotzdem speichern?`)) return wiederOeffnen(dT);
+  }
+  // Ohne eigene Uhrzeit gilt die Zeit von der ersten bis zur letzten Schicht
+  let start2 = start, ende2 = ende;
+  if (mitSchichten && !start && !$("#t-ganztags").checked) {
+    const zeiten = entwurfSchichten.map((x) => [x.start_zeit, x.end_zeit]).flat().sort();
+    start2 = zeiten[0]; ende2 = zeiten[zeiten.length - 1];
+  }
   const daten = {
     titel,
     datum,
     bis_datum: bis,
-    start_zeit: start,
-    end_zeit: ende,
+    start_zeit: start2,
+    end_zeit: ende2,
     ort: leer($("#t-ort").value),
     beschreibung: leer($("#t-notiz").value),
     projekt_id: $("#t-projekt").value || null,
     extern,
     zustaendig,
     gehoert_zu: extern ? $("#t-gehoert").value || null : null,
+    mit_schichten: mitSchichten,
   };
   // Noch nicht hinzugefügter Text im Unterpunkt-Feld soll nicht verloren gehen
   const offen = $("#t-neuer-punkt").value.trim();
@@ -1383,6 +1584,7 @@ dT.addEventListener("close", async () => {
     }
   }
   if (fehler) { console.error(fehler); meldung("Speichern hat nicht geklappt. Bitte noch einmal versuchen.", true); return wiederOeffnen(dT); }
+  await schichtenSpeichern(neueTerminId || bearbeiteterTermin.id, mitSchichten);
   meldung(bearbeiteterTermin ? "Termin gespeichert." : "Termin eingetragen.");
   entwurfPunkte = [];
   await neuLadenUndZeichnen();
@@ -2088,7 +2290,7 @@ $("#form-name").addEventListener("submit", async (e) => {
 // ------------------------------------------------------------------
 //  Datensicherung: herunterladen und wiederherstellen
 // ------------------------------------------------------------------
-const SICHERUNG_TABELLEN = ["projekte", "termine", "aufgaben"]; // Reihenfolge wegen Verknüpfungen
+const SICHERUNG_TABELLEN = ["projekte", "termine", "aufgaben", "schichten"]; // Reihenfolge wegen Verknüpfungen
 
 async function alleZeilen(tabelle) {
   const zeilen = [];
@@ -2197,7 +2399,8 @@ $("#sicherung-datei").addEventListener("change", async (e) => {
       termin_id: a.termin_id && terminIds.has(a.termin_id) ? a.termin_id : null,
     }));
 
-    for (const [tabelle, zeilen] of [["projekte", projekte], ["termine", termine], ["aufgaben", aufgaben]]) {
+    const schichten = (daten.schichten || []).filter((x) => terminIds.has(x.termin_id));
+    for (const [tabelle, zeilen] of [["projekte", projekte], ["termine", termine], ["aufgaben", aufgaben], ["schichten", schichten]]) {
       for (let i = 0; i < zeilen.length; i += 500) {
         const { error } = await sb.from(tabelle).upsert(zeilen.slice(i, i + 500), { onConflict: "id" });
         if (error) throw error;
