@@ -964,3 +964,30 @@ html, body, button, a, input, select, textarea, label { touch-action: manipulati
 #dialog-termin.ansicht #termin-ueberschrift .marke { vertical-align: middle; font-size: .8rem; }
 #dialog-termin.ansicht .termin-info { margin-top: 0; }
 .termin-info .ti-art { margin: 0 0 .3rem; font-size: .9rem; font-weight: 600; color: var(--grau); }
+
+/* Fortschritt auf Termin- und Projektkarten: Streifen bis an den unteren Kartenrand,
+   weißer Grund mit feiner Linie, damit sich die Karte vom Hintergrund abhebt */
+.termin, .projekt-karte { overflow: hidden; }
+.termin > .fortschritt-text,
+.projekt-karte > .fortschritt-text {
+  flex: 0 0 calc(100% + 2 * var(--abstand));
+  width: calc(100% + 2 * var(--abstand));
+  margin: .75rem calc(-1 * var(--abstand)) calc(-1 * var(--abstand));
+  border-radius: 0;
+  height: 2.1rem;
+  background: var(--weiss);
+  border-top: 1px solid var(--linie);
+}
+.termin > .fortschritt-text > .fuellung,
+.projekt-karte > .fortschritt-text > .fuellung { background: #a6cf4f; }
+.termin > .fortschritt-text.fertig > .fuellung,
+.projekt-karte > .fortschritt-text.fertig > .fuellung { background: var(--grashalm); }
+.termin > .fortschritt-text > .label,
+.projekt-karte > .fortschritt-text > .label { line-height: 2.1rem; padding: 0 var(--abstand); text-align: center; }
+/* Gestrichelter Rand (Frist, in Planung) zählt 2px zum Abstand */
+.termin.frist > .fortschritt-text,
+.projekt-karte.ist-planung > .fortschritt-text {
+  flex-basis: calc(100% + 2 * (var(--abstand) - 2px));
+  width: calc(100% + 2 * (var(--abstand) - 2px));
+  margin: .75rem calc(-1 * (var(--abstand) - 2px)) calc(-1 * (var(--abstand) - 2px));
+}

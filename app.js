@@ -2009,8 +2009,8 @@ function zeichneProjekte() {
         <span class="plus-platz" aria-hidden="true"></span>
         <strong>📁 ${esc(x.name)}</strong>
         ${x.beschreibung ? `<span class="beschreibung">${esc(x.beschreibung.length > 120 ? x.beschreibung.slice(0, 120) + " …" : x.beschreibung)}</span>` : ""}
-        ${z.freie.length ? fortschritt(z.freieErledigt, z.freie.length, z.freie.length === 1 ? "Aufgabe erledigt" : "Aufgaben erledigt") : ""}
         ${meta ? `<span class="meta">${meta}</span>` : ""}
+        ${z.freie.length ? fortschritt(z.freieErledigt, z.freie.length, z.freie.length === 1 ? "Aufgabe erledigt" : "Aufgaben erledigt") : ""}
       </button>
       <button class="dupl-knopf" data-dupl-projekt="${x.id}" aria-label="Projekt „${esc(x.name)}“ duplizieren" title="Duplizieren">＋</button></div>`;
     };
