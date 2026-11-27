@@ -803,3 +803,22 @@ dialog { border-radius: calc(var(--abstand) + 1.45rem); }
 .termin-frist .te-datum { background: rgba(255,255,255,.16); color: var(--weiss); }
 .termin-frist .te-datum .wt { color: rgba(255,255,255,.75); }
 .termin-frist .te-wer { color: #cfe8b0; }
+
+/* ---------- Termin: schlanke Ansicht ---------- */
+.termin-info .ti-titel .marke { vertical-align: middle; font-size: .8rem; }
+.projekt-link {
+  display: inline-flex; align-items: center; gap: .35rem;
+  margin: .5rem 0 .2rem; padding: .45rem .85rem;
+  font: inherit; font-size: .95rem; font-weight: 600;
+  color: var(--tanne); background: #e7f0dc; border: none; border-radius: var(--r-innen);
+  cursor: pointer;
+}
+.projekt-link span { color: var(--grau); font-weight: 400; }
+#t-aufgaben { margin-top: .8rem; }
+#t-aufgaben h3 { font-size: 1.1rem; }
+#t-bearbeiten { margin-top: 1rem; }
+#t-uebernehmen { margin-top: .8rem; }
+
+/* Projekt-Etikett auf Karten: etwas größer und antippbar */
+.etikett.projekt-etikett { font-size: .9rem; padding: .3rem .75rem; cursor: pointer; }
+.etikett.projekt-etikett::after { content: " ›"; color: var(--grau); font-weight: 400; }

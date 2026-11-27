@@ -586,8 +586,24 @@ const datumBlock = (d) =>
 
 function projektEtikett(projektId) {
   const p = projektVon(projektId);
-  return p ? `<span class="etikett">📁 ${esc(p.name)}</span>` : "";
+  return p ? `<span class="etikett projekt-etikett" data-zum-projekt="${p.id}" role="link" tabindex="0" title="Zum Projekt">📁 ${esc(p.name)}</span>` : "";
 }
+
+// Projekt-Etiketten und -Links führen überall zum Projekt (vor allen anderen Klick-Reaktionen)
+function zumProjekt(id) {
+  if (!projektVon(id)) return;
+  $$("dialog[open]").forEach((d) => d.close("abbrechen"));
+  S.projektOffen = id;
+  wechsleSeite("projekte");
+  zeichneProjekte();
+}
+document.addEventListener("click", (e) => {
+  const link = e.target.closest("[data-zum-projekt]");
+  if (!link) return;
+  e.preventDefault();
+  e.stopPropagation();
+  zumProjekt(link.dataset.zumProjekt);
+}, true);
 
 // Externe Termine, die mit einem unserer Termine verknüpft sind
 const verknuepfteVon = (id) =>
@@ -819,15 +835,15 @@ $("#t-start").addEventListener("change", () => {
   }
 });
 
-function oeffneTermin(t = null, vorgabe = {}) {
+// Bestehende Termine öffnen in der schlanken Ansicht (Infos + Aufgaben),
+// „Termin bearbeiten“ zeigt die Felder. Neue Termine starten im Bearbeiten.
+let terminModus = "ansicht";
+
+function oeffneTermin(t = null, vorgabe = {}, modus = t ? "ansicht" : "bearbeiten") {
   bearbeiteterTermin = t;
   entwurfPunkte = [];
   punkteSortieren = false;
-  const importiert = !!t?.quelle;
-  $("#termin-ueberschrift").textContent = importiert ? "Termin vom Kreisverband" : t ? "Termin bearbeiten" : "Neuer Termin";
-  $("#t-felder").hidden = importiert;
-  $("#t-info").hidden = !importiert;
-  if (importiert) $("#t-info").innerHTML = terminInfo(t);
+  terminModus = modus;
   $("#t-extern").checked = !!t?.extern;
   personenOptionen($("#t-wer"), t?.zustaendig);
   eigeneTerminOptionen(t);
@@ -846,16 +862,66 @@ function oeffneTermin(t = null, vorgabe = {}) {
   projektOptionen($("#t-projekt"), t ? t.projekt_id : vorgabe.projekt_id);
   titelVorgabeAktualisieren();
   $("#t-neuer-punkt").value = "";
-  $("#t-loeschen").hidden = !t || importiert;
   ganztagsUmschalten();
   zeichneUnterpunkte();
+  setzeTerminModus(modus);
   dT.returnValue = "";
-  dT.showModal();
+  if (!dT.open) dT.showModal();
   if (!t && !istTouch()) $("#t-titel").focus();
 }
 
+function setzeTerminModus(modus) {
+  terminModus = modus;
+  const t = bearbeiteterTermin;
+  const ansicht = modus === "ansicht" && !!t;
+  const importiert = !!t?.quelle;
+  $("#termin-ueberschrift").textContent = ansicht
+    ? (importiert ? "Termin vom Kreisverband" : t.extern ? "Externer Termin" : "Termin")
+    : importiert ? "Kreistermin ergänzen" : t ? "Termin bearbeiten" : "Neuer Termin";
+  $("#t-info").hidden = !(ansicht || importiert);
+  if (ansicht || importiert) $("#t-info").innerHTML = importiert ? terminInfo(t, ansicht) : terminUebersicht(t);
+  $("#t-felder").hidden = ansicht || importiert;
+  $("#t-projekt-bereich").hidden = ansicht;
+  // Aufgaben: in der Ansicht direkt unter den Infos, beim Anlegen unten; beim Bearbeiten ausgeblendet
+  const aufgaben = $("#t-aufgaben");
+  (ansicht ? $("#t-aufgaben-oben") : $("#t-aufgaben-platz")).before(aufgaben);
+  aufgaben.hidden = !!t && !ansicht;
+  $("#t-bearbeiten").hidden = !ansicht;
+  $("#t-knoepfe").hidden = ansicht;
+  $("#t-loeschen").hidden = ansicht || !t || importiert;
+  zeichneRueckmeldung(t);
+  externUmschalten();
+}
+
+$("#t-bearbeiten").addEventListener("click", () => {
+  setzeTerminModus("bearbeiten");
+  $("#dialog-termin").scrollTop = 0;
+});
+$("#t-abbrechen").addEventListener("click", () => {
+  // Beim Bearbeiten: zurück zur Ansicht (Änderungen verwerfen); beim Anlegen: schließen
+  if (bearbeiteterTermin) oeffneTermin(terminVon(bearbeiteterTermin.id) || bearbeiteterTermin);
+  else dT.close("abbrechen");
+});
+
+// Kopf der Ansicht: das, was auch auf der Karte steht
+function terminUebersicht(t) {
+  const datum = t.bis_datum && t.bis_datum !== t.datum ? `${langesDatum(t.datum)} bis ${langesDatum(t.bis_datum)}` : langesDatum(t.datum);
+  const zeit = t.start_zeit ? (t.end_zeit ? `${uhr(t.start_zeit)}–${uhr(t.end_zeit)}\u00a0Uhr` : `${uhr(t.start_zeit)}\u00a0Uhr`) : "";
+  const wer = t.extern ? nameVon(t.zustaendig) : "";
+  return `<h3 class="ti-titel">${esc(t.titel)} ${relMarke(t.datum)}</h3>
+    <p class="ti-zeile">📅 ${bloecke([esc(datum), zeit])}</p>
+    ${t.ort ? `<p class="ti-zeile">📍 ${esc(t.ort)}</p>` : ""}
+    ${wer ? `<p class="ti-zeile">👤 übernimmt: ${esc(wer)}</p>` : ""}
+    ${t.beschreibung ? `<p class="ti-text">${esc(t.beschreibung)}</p>` : ""}
+    ${projektLink(t.projekt_id)}`;
+}
+function projektLink(id) {
+  const p = projektVon(id);
+  return p ? `<button type="button" class="projekt-link" data-zum-projekt="${p.id}">📁 ${esc(p.name)} <span aria-hidden="true">›</span></button>` : "";
+}
+
 function zeichneRueckmeldung(t) {
-  $("#t-rueck").hidden = !t;
+  $("#t-rueck").hidden = !t || terminModus !== "ansicht";
   if (!t) return;
   const r = rueckVon(t.id);
   $$("[data-rueck]").forEach((b) => {
@@ -895,10 +961,11 @@ $("#t-rueck").addEventListener("click", async (e) => {
 });
 
 function externUmschalten() {
-  $("#t-wer-bereich").hidden = !$("#t-extern").checked;
-  $("#t-uebernehmen").hidden = !(bearbeiteterTermin?.extern && $("#t-extern").checked && !istVerknuepft(bearbeiteterTermin));
+  const ansicht = terminModus === "ansicht" && !!bearbeiteterTermin;
+  $("#t-wer-bereich").hidden = ansicht || !$("#t-extern").checked;
+  $("#t-uebernehmen").hidden = !(ansicht && bearbeiteterTermin?.extern && !istVerknuepft(bearbeiteterTermin));
   // Ein Termin, der selbst externe Termine sammelt, wird nicht seinerseits verknüpft
-  $("#t-verknuepft").hidden = $("#t-extern").checked || !bearbeiteterTermin || !verknuepfteVon(bearbeiteterTermin.id).length;
+  $("#t-verknuepft").hidden = !ansicht || $("#t-extern").checked || !verknuepfteVon(bearbeiteterTermin.id).length;
 }
 
 // Auswahl „Gehört zu unserem Termin“: Termine am selben Tag zuerst, dann nach Abstand
@@ -941,7 +1008,7 @@ $("#t-uebernehmen").addEventListener("click", async () => {
   dT.close("abbrechen");
   await neuLadenUndZeichnen();
   const neu = terminVon(data.id);
-  if (neu) { oeffneTermin(neu); meldung("Eigener Termin angelegt und verknüpft – jetzt anpassen und speichern."); }
+  if (neu) { oeffneTermin(neu, {}, "bearbeiten"); meldung("Eigener Termin angelegt und verknüpft – jetzt anpassen und speichern."); }
 });
 
 $("#t-verknuepft-liste").addEventListener("click", async (e) => {
@@ -964,15 +1031,17 @@ $("#t-verknuepft-liste").addEventListener("click", async (e) => {
 $("#t-extern").addEventListener("change", externUmschalten);
 
 // Ansicht für Termine von der Website: alles zum Lesen, dazu der Link
-function terminInfo(t) {
+function terminInfo(t, ansicht = false) {
   const datum = t.bis_datum && t.bis_datum !== t.datum ? `${langesDatum(t.datum)} bis ${langesDatum(t.bis_datum)}` : langesDatum(t.datum);
   const zeit = t.start_zeit ? (t.end_zeit ? `${uhr(t.start_zeit)}–${uhr(t.end_zeit)}\u00a0Uhr` : `${uhr(t.start_zeit)}\u00a0Uhr`) : "";
   return `<h3 class="ti-titel">${esc(t.titel)}</h3>
     <p class="ti-zeile">📅 ${bloecke([esc(datum), zeit])}</p>
     ${t.ort ? `<p class="ti-zeile">📍 ${esc(t.ort)}</p>` : ""}
     ${t.beschreibung ? `<p class="ti-text">${esc(t.beschreibung)}</p>` : ""}
+    ${t.zustaendig ? `<p class="ti-zeile">👤 übernimmt: ${esc(nameVon(t.zustaendig))}</p>` : ""}
+    ${ansicht ? projektLink(t.projekt_id) : ""}
     ${t.link ? `<a class="knopf klein ti-link" href="${esc(t.link)}" target="_blank" rel="noopener">Auf der Website ansehen ↗</a>` : ""}
-    <p class="klein ti-hinweis">Kommt automatisch von der Website des Kreisverbands und wird stündlich aktualisiert. Hier haltet ihr fest, wer hingeht, und könnt Unterpunkte anlegen.</p>`;
+    <p class="klein ti-hinweis">Kommt automatisch von der Website des Kreisverbands und wird stündlich aktualisiert.${ansicht ? "" : " Hier haltet ihr fest, wer hingeht und wozu er gehört."}</p>`;
 }
 
 function zeichneUnterpunkte() {
@@ -1065,7 +1134,17 @@ $("#t-unterpunkte").addEventListener("change", async (e) => {
 });
 
 dT.addEventListener("close", async () => {
-  if (dT.returnValue !== "speichern") { if (!bearbeiteterTermin) nachAnlegen.termin = null; return; }
+  if (dT.returnValue !== "speichern") {
+    if (!bearbeiteterTermin) { nachAnlegen.termin = null; return; }
+    // In der Ansicht getippter, noch nicht hinzugefügter Unterpunkt geht nicht verloren
+    const offen = terminModus === "ansicht" ? $("#t-neuer-punkt").value.trim() : "";
+    if (offen) {
+      $("#t-neuer-punkt").value = "";
+      const { error } = await sb.from("aufgaben").insert({ titel: offen, termin_id: bearbeiteterTermin.id });
+      if (!error) { meldung("Aufgabe hinzugefügt."); neuLadenUndZeichnen(); }
+    }
+    return;
+  }
   const extern = $("#t-extern").checked;
   const zustaendig = extern ? $("#t-wer").value || null : null;
   if (bearbeiteterTermin?.quelle) {
@@ -1077,7 +1156,8 @@ dT.addEventListener("close", async () => {
     if (!error && offen) await sb.from("aufgaben").insert({ titel: offen, termin_id: bearbeiteterTermin.id });
     if (error) { console.error(error); meldung("Speichern hat nicht geklappt. Bitte noch einmal versuchen.", true); return wiederOeffnen(dT); }
     meldung("Gespeichert.");
-    return neuLadenUndZeichnen();
+    await neuLadenUndZeichnen();
+    return terminVon(bearbeiteterTermin.id) && oeffneTermin(terminVon(bearbeiteterTermin.id));
   }
   const datum = $("#t-datum").value;
   let bis = $("#t-bis").value || null;
@@ -1122,7 +1202,10 @@ dT.addEventListener("close", async () => {
   meldung(bearbeiteterTermin ? "Termin gespeichert." : "Termin eingetragen.");
   entwurfPunkte = [];
   await neuLadenUndZeichnen();
-  if (neueTerminId && nachAnlegen.termin) { const f = nachAnlegen.termin; nachAnlegen.termin = null; f(neueTerminId); }
+  if (neueTerminId && nachAnlegen.termin) { const f = nachAnlegen.termin; nachAnlegen.termin = null; return f(neueTerminId); }
+  // Danach die schlanke Ansicht zeigen – dort lassen sich gleich Aufgaben anlegen
+  const id = neueTerminId || bearbeiteterTermin?.id;
+  if (id && terminVon(id)) oeffneTermin(terminVon(id));
 });
 
 $("#t-loeschen").addEventListener("click", async () => {

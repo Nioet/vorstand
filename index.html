@@ -187,6 +187,7 @@
         <button type="button" class="dialog-zu" data-schliessen autofocus aria-label="Schließen">✕</button>
       </div>
       <div id="t-info" class="termin-info" hidden></div>
+      <div id="t-aufgaben-oben"></div>
 
       <div id="t-rueck" class="rueck-bereich" hidden>
         <div class="rueck-knoepfe">
@@ -232,19 +233,20 @@
         <label for="t-gehoert">Gehört zu unserem Termin (freiwillig)</label>
         <select id="t-gehoert"></select>
         <p class="klein">Verknüpft verschwindet er aus der Übersicht und erscheint in eurem Termin.</p>
-        <button type="button" id="t-uebernehmen" class="knopf breit" hidden>📅 Als eigenen Termin übernehmen</button>
       </div>
 
-      <label for="t-projekt">Projekt (freiwillig)</label>
-      <select id="t-projekt"></select>
+      <div id="t-projekt-bereich">
+        <label for="t-projekt">Projekt (freiwillig)</label>
+        <select id="t-projekt"></select>
+      </div>
 
       <div id="t-verknuepft" class="verknuepft-bereich" hidden>
         <h3>Verknüpfte externe Termine</h3>
         <div id="t-verknuepft-liste"></div>
       </div>
 
-      <div class="unterpunkte-bereich">
-        <h3>Unterpunkte zum Abhaken</h3>
+      <div class="unterpunkte-bereich" id="t-aufgaben">
+        <h3>Aufgaben</h3>
         <ul id="t-unterpunkte" class="checkliste"></ul>
         <div class="sortier-leiste" id="t-sortier-leiste">
           <button type="button" class="knopf klein" id="t-sortieren">↕ Reihenfolge ändern</button>
@@ -257,9 +259,13 @@
         <p id="t-punkte-hinweis" class="klein"></p>
       </div>
 
-      <div class="dialog-knoepfe">
+      <div id="t-aufgaben-platz"></div>
+      <button type="button" id="t-uebernehmen" class="knopf breit" hidden>📅 Als eigenen Termin übernehmen</button>
+      <button type="button" id="t-bearbeiten" class="knopf breit" hidden>✏️ Termin bearbeiten</button>
+
+      <div class="dialog-knoepfe" id="t-knoepfe">
         <button type="submit" value="speichern" class="knopf haupt">Speichern</button>
-        <button type="submit" value="abbrechen" formnovalidate class="knopf">Abbrechen</button>
+        <button type="button" id="t-abbrechen" class="knopf">Abbrechen</button>
       </div>
       <button type="button" id="t-loeschen" class="knopf warnung breit" hidden>Termin löschen</button>
     </form>
