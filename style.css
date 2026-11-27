@@ -45,7 +45,7 @@ p { margin: .4rem 0 .8rem; }
 label {
   display: block;
   font-weight: 600;
-  margin: .9rem 0 .3rem;
+  margin: .75rem 0 .3rem;
 }
 label.haken {
   display: flex;
@@ -58,8 +58,8 @@ label.haken input { width: 1.5rem; height: 1.5rem; margin: 0; accent-color: var(
 input, select, textarea {
   width: 100%;
   font: inherit;
-  padding: .75rem .8rem;
-  min-height: 3rem;
+  padding: .65rem .75rem;
+  min-height: 2.85rem;
   border: 2px solid var(--linie);
   border-radius: 10px;
   background: var(--weiss);
@@ -76,8 +76,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
   align-items: center;
   justify-content: center;
   gap: .4rem;
-  min-height: 3.2rem;
-  padding: .6rem 1.1rem;
+  min-height: 2.85rem;
+  padding: .5rem 1rem;
   font: inherit;
   font-weight: 600;
   border-radius: 12px;
@@ -91,7 +91,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
 .knopf.haupt { background: var(--tanne); color: var(--weiss); }
 .knopf.warnung { border-color: var(--rot); color: var(--rot); }
 .knopf.leise { border-color: transparent; background: transparent; text-decoration: underline; }
-.knopf.breit { width: 100%; margin-top: .6rem; }
+.knopf.breit { width: 100%; margin-top: .5rem; }
 .knopf.klein { min-height: 2.8rem; padding: .4rem .8rem; font-size: .95rem; }
 .knopf:active { transform: translateY(1px); }
 .knopf[disabled] { opacity: .5; }
@@ -976,7 +976,7 @@ html, body, button, a, input, select, textarea, label { touch-action: manipulati
   border-radius: 0;
   height: 2.1rem;
   /* früherer grauer Balkengrund, zu 70 % mit Weiß aufgehellt (statt Trennlinie) */
-  background: #f8f7f3;
+  background: #f5f2ed;
 }
 .termin > .fortschritt-text > .fuellung,
 .projekt-karte > .fortschritt-text > .fuellung { background: #a6cf4f; }
@@ -997,3 +997,47 @@ html, body, button, a, input, select, textarea, label { touch-action: manipulati
 #projekt-archiv .archiv-kopf { margin-top: .4rem; }
 #projekt-archiv > .klein { margin: 0 .2rem .4rem; }
 #projekt-archiv .projekt-karte.ist-abgeschlossen { opacity: 1; }
+
+/* =====================================================================
+   Platzsparender: Knopfreihen, schlanke Sortier-Knöpfe, Plus-Knopf
+   ===================================================================== */
+.monat { margin-top: 1.2rem; }
+.umschalter { margin-bottom: .7rem; }
+
+/* Zwei Knöpfe nebeneinander; ist einer ausgeblendet, nimmt der andere die ganze Breite */
+.knopf-reihe { display: flex; gap: .5rem; margin-top: .5rem; }
+.knopf-reihe > .knopf { flex: 1 1 0; min-width: 0; line-height: 1.2; padding-left: .6rem; padding-right: .6rem; }
+.knopf-reihe > .knopf[hidden] { display: none; }
+.termin-ansicht-knoepfe:not(:has(.knopf:not([hidden]))) { display: none; }
+
+/* Sortieren: kleine Knöpfe rechtsbündig statt ganzer Breite */
+.sortier-leiste { justify-content: flex-end; gap: .4rem; margin: .5rem 0 0; }
+.sortier-leiste .knopf { flex: 0 0 auto; min-height: 2.2rem; padding: .2rem .75rem; font-size: .88rem; border-width: 1.5px; }
+.filter-zeile { display: flex; gap: .5rem; align-items: center; margin-bottom: .7rem; }
+.filter-zeile .filter-auswahl { flex: 1 1 auto; min-width: 0; margin: 0; }
+.filter-zeile .sortier-leiste { margin: 0; flex: 0 0 auto; }
+.filter-zeile .sortier-leiste .knopf { min-height: 2.85rem; }
+
+/* Neue Aufgabe im Termin: Plus-Knopf so hoch wie das Eingabefeld */
+.neuer-punkt-zeile { align-items: stretch; margin-top: .5rem; }
+.plus-knopf { width: 2.85rem; padding: 0; font-size: 1.4rem; flex: 0 0 2.85rem !important; }
+
+/* Schichten kompakter */
+.schichten-ansicht > li { padding: .55rem 0; }
+.schicht-namen { margin: .25rem 0 .4rem; }
+.schicht-leer { margin: .1rem 0 .4rem; }
+.schicht-knoepfe { margin-top: 0; }
+.schicht-knoepfe > .knopf:first-child { flex: 1 1 auto; }
+.schicht-knoepfe > .schicht-anderer-knopf { flex: 0 0 auto; white-space: nowrap; font-size: .92rem; padding: .4rem .75rem; }
+.schicht-name-zeile { margin-top: .45rem; align-items: stretch; }
+.schicht-name-zeile > .knopf { flex: 0 0 auto; }
+
+/* Projekte in Planung: Balkengrund etwas dunkler, damit er sich von der Karte abhebt */
+.projekt-karte.ist-planung > .fortschritt-text { background: #ece7de; }
+
+/* Überschrift mit Sortier-Knopf rechts daneben */
+.bereich-kopf { display: flex; align-items: center; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
+.bereich-kopf > h2, .bereich-kopf > h3 { margin-bottom: 0; }
+.bereich-kopf > .sortier-leiste { margin: 0; }
+.unterpunkte-bereich .bereich-kopf { margin-bottom: .5rem; }
+.projekt-detail-abschnitt .bereich-kopf { margin-bottom: .4rem; }

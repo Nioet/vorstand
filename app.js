@@ -905,30 +905,29 @@ function zeichneSchichtenAnsicht(t) {
     const frei = x.plaetze - leute.length;
     const status = frei > 0 ? `noch ${frei} ${frei === 1 ? "Platz" : "Plätze"} frei` : "voll";
     const knopf = dabei
-      ? `<button type="button" class="knopf breit gewaehlt" data-schicht="${x.id}" aria-pressed="true">✓ Ich bin dabei</button>`
+      ? `<button type="button" class="knopf gewaehlt" data-schicht="${x.id}" aria-pressed="true">✓ Ich bin dabei</button>`
       : frei > 0
-        ? `<button type="button" class="knopf haupt breit" data-schicht="${x.id}" aria-pressed="false">Ich bin dabei</button>`
-        : `<button type="button" class="knopf breit" disabled>Schicht ist voll</button>`;
+        ? `<button type="button" class="knopf haupt" data-schicht="${x.id}" aria-pressed="false">Ich bin dabei</button>`
+        : `<button type="button" class="knopf" disabled>Schicht ist voll</button>`;
     // Helfer ohne App lassen sich wieder entfernen (✕), Vorstandsmitglieder tragen sich selbst aus
     const namen = leute.length
       ? `<ul class="schicht-namen">${leute.map((e) => e.person
           ? `<li class="${e.person === S.userId ? "ich" : ""}">${esc(eintragName(e))}</li>`
           : `<li class="ohne-app">${esc(e.name)}<button type="button" class="name-weg" data-name-weg="${e.id}" aria-label="${esc(e.name)} austragen">✕</button></li>`).join("")}</ul>`
       : `<p class="schicht-leer">Noch niemand eingetragen</p>`;
-    const anderer = frei > 0
-      ? `<details class="schicht-anderer">
-          <summary>＋ Jemanden ohne App eintragen</summary>
-          <div class="zeile">
-            <input type="text" maxlength="60" autocomplete="off" enterkeyhint="done" placeholder="Name, z. B. Hans M." aria-label="Name" data-name-feld="${x.id}">
-            <button type="button" class="knopf" data-name-dazu="${x.id}">Eintragen</button>
-          </div>
-        </details>`
-      : "";
+    const andererKnopf = frei > 0
+      ? `<button type="button" class="knopf schicht-anderer-knopf" data-name-oeffnen="${x.id}" aria-expanded="false"
+          aria-label="Jemanden ohne App eintragen" title="Jemanden ohne App eintragen">＋ Ohne App</button>` : "";
+    const andererZeile = frei > 0
+      ? `<div class="zeile schicht-name-zeile" data-name-zeile="${x.id}" hidden>
+          <input type="text" maxlength="60" autocomplete="off" enterkeyhint="done" placeholder="Name, z. B. Hans M." aria-label="Name der Person ohne App" data-name-feld="${x.id}">
+          <button type="button" class="knopf" data-name-dazu="${x.id}">Eintragen</button>
+        </div>` : "";
     return `<li class="schicht${frei <= 0 ? " voll" : ""}${dabei ? " meine" : ""}">
       <div class="schicht-kopf"><strong>${esc(schichtZeit(x))}</strong><span class="schicht-frei">${status}</span></div>
       ${namen}
-      ${knopf}
-      ${anderer}
+      <div class="knopf-reihe schicht-knoepfe">${knopf}${andererKnopf}</div>
+      ${andererZeile}
     </li>`;
   }).join("");
 }
@@ -949,6 +948,15 @@ async function schichtNeuZeichnen(t, nachladen = false) {
 $("#t-schichten-ansicht").addEventListener("click", async (e) => {
   const t = bearbeiteterTermin;
   if (!t) return;
+  // Eingabezeile für Helfer ohne App auf- und zuklappen
+  const oeffnen = e.target.closest("[data-name-oeffnen]");
+  if (oeffnen) {
+    const zeile = $(`[data-name-zeile="${oeffnen.dataset.nameOeffnen}"]`);
+    zeile.hidden = !zeile.hidden;
+    oeffnen.setAttribute("aria-expanded", String(!zeile.hidden));
+    if (!zeile.hidden) zeile.querySelector("input").focus();
+    return;
+  }
   // Helfer ohne App eintragen
   const dazu = e.target.closest("[data-name-dazu]");
   if (dazu) return nameEintragen(t, dazu.dataset.nameDazu);
@@ -1532,7 +1540,7 @@ function zeichneUnterpunkte() {
     })
     .join("");
   $("#t-sortier-leiste").hidden = punkte.length < 2;
-  $("#t-sortieren").textContent = punkteSortieren ? "✓ Fertig sortiert" : "↕ Reihenfolge ändern";
+  $("#t-sortieren").textContent = punkteSortieren ? "✓ Fertig" : "↕ Sortieren";
   $("#t-sortieren").classList.toggle("aktiv", punkteSortieren);
   $("#t-nach-datum").hidden = !punkteSortieren;
   $("#t-punkte-hinweis").textContent = punkte.length
@@ -1740,7 +1748,7 @@ function zeichneAufgaben() {
 
 function sortierKnoepfeAktualisieren() {
   $$('[data-aktion="sortieren-umschalten"]').forEach((b) => {
-    b.textContent = S.sortieren ? "✓ Fertig sortiert" : "↕ Reihenfolge ändern";
+    b.textContent = S.sortieren ? "✓ Fertig" : "↕ Sortieren";
     b.classList.toggle("aktiv", S.sortieren);
   });
   $$('[data-aktion="nach-datum"]').forEach((b) => (b.hidden = !S.sortieren));
@@ -2093,10 +2101,12 @@ function zeichneProjekte() {
       <p>👤 ${p.zustaendig ? `Zuständig: <strong>${esc(nameVon(p.zustaendig) || "?")}</strong>${p.zustaendig === S.userId ? " (ich)" : ""}` : "Noch niemand zuständig"}</p>
       ${z.freie.length ? `<p>${fortschritt(z.freieErledigt, z.freie.length, z.freie.length === 1 ? "Aufgabe erledigt" : "Aufgaben erledigt")}</p>` : ""}
       ${p.in_planung && !p.abgeschlossen ? `<button class="knopf haupt breit" data-aktion="projekt-starten">▶ Projekt starten</button>` : ""}
-      <button class="knopf breit" data-aktion="projekt-bearbeiten">Projekt bearbeiten</button>
-      ${p.abgeschlossen
-        ? `<button class="knopf breit" data-aktion="projekt-aufnehmen">↺ Wieder aufnehmen</button>`
-        : `<button class="knopf breit" data-aktion="projekt-abschliessen">✔ Projekt abschließen</button>`}
+      <div class="knopf-reihe">
+        <button class="knopf" data-aktion="projekt-bearbeiten">✏️ Bearbeiten</button>
+        ${p.abgeschlossen
+          ? `<button class="knopf" data-aktion="projekt-aufnehmen">↺ Wieder aufnehmen</button>`
+          : `<button class="knopf" data-aktion="projekt-abschliessen" title="Projekt abschließen und ins Projekt-Archiv verschieben">✔ Abschließen</button>`}
+      </div>
     </div>
 
     <section class="projekt-detail-abschnitt">
@@ -2110,14 +2120,16 @@ function zeichneProjekte() {
     </section>
 
     <section class="projekt-detail-abschnitt">
-      <h2>Aufgaben</h2>
+      <div class="bereich-kopf">
+        <h2>Aufgaben</h2>
+        ${offen.length > 1 ? `<div class="sortier-leiste">
+          <button class="knopf klein" data-aktion="nach-datum" hidden>📅 Nach Datum</button>
+          <button class="knopf klein" data-aktion="sortieren-umschalten" title="Reihenfolge ändern">↕ Sortieren</button>
+        </div>` : ""}
+      </div>
       ${hatUnterpunkte ? `<p class="klein">Hier stehen die Aufgaben des Projekts ohne Termin. Die Unterpunkte der Termine findet ihr direkt bei den Terminen.</p>` : ""}
       <button class="knopf haupt breit" data-aktion="projekt-aufgabe">＋ Aufgabe für dieses Projekt</button>
-      ${offen.length > 1 ? `<div class="sortier-leiste" style="margin-top:.6rem">
-        <button class="knopf klein" data-aktion="sortieren-umschalten">↕ Reihenfolge ändern</button>
-        <button class="knopf klein" data-aktion="nach-datum" hidden>📅 Nach Datum sortieren</button>
-      </div>` : ""}
-      <div style="margin-top:.8rem">
+      <div style="margin-top:.6rem">
         ${offen.map((a) => aufgabeHtml(a, { mitProjekt: false, liste: "projekt-offen" })).join("") || `<p class="leer">Keine offenen Aufgaben.</p>`}
       </div>
       ${fertig.length ? `<details class="einklappen"><summary>Erledigt (${fertig.length})</summary>

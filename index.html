@@ -69,10 +69,12 @@
           <button role="tab" data-filter="alle">Alle</button>
           <button role="tab" data-filter="niemand">Ohne Zuständige</button>
         </div>
-        <select id="aufgaben-projekt" class="filter-auswahl" aria-label="Nach Projekt filtern"></select>
-        <div class="sortier-leiste">
-          <button class="knopf klein" data-aktion="sortieren-umschalten">↕ Reihenfolge ändern</button>
-          <button class="knopf klein" data-aktion="nach-datum" hidden>📅 Nach Datum sortieren</button>
+        <div class="filter-zeile">
+          <select id="aufgaben-projekt" class="filter-auswahl" aria-label="Nach Projekt filtern"></select>
+          <div class="sortier-leiste">
+            <button class="knopf klein" data-aktion="nach-datum" hidden>📅 Nach Datum</button>
+            <button class="knopf klein" data-aktion="sortieren-umschalten" title="Reihenfolge ändern">↕ Sortieren</button>
+          </div>
         </div>
         <div id="aufgaben-board" class="board"></div>
       </section>
@@ -124,8 +126,10 @@
         <div class="karte">
           <h2>Kalender aufs Handy holen</h2>
           <p>Damit erscheinen alle Termine und Aufgaben-Fristen automatisch in deinem normalen Handy-Kalender.</p>
-          <a id="abo-webcal" class="knopf haupt breit" href="#">📅 Kalender abonnieren</a>
-          <button id="abo-kopieren" class="knopf breit">Link kopieren</button>
+          <div class="knopf-reihe">
+            <a id="abo-webcal" class="knopf haupt" href="#">📅 Abonnieren</a>
+            <button id="abo-kopieren" class="knopf">Link kopieren</button>
+          </div>
           <details class="hilfe">
             <summary>So geht's Schritt für Schritt</summary>
             <p><strong>iPhone:</strong> Auf „Kalender abonnieren“ tippen und dann „Abonnieren“ bestätigen.</p>
@@ -291,22 +295,26 @@
       </div>
 
       <div class="unterpunkte-bereich" id="t-aufgaben">
-        <h3>Aufgaben</h3>
-        <ul id="t-unterpunkte" class="checkliste"></ul>
-        <div class="sortier-leiste" id="t-sortier-leiste">
-          <button type="button" class="knopf klein" id="t-sortieren">↕ Reihenfolge ändern</button>
-          <button type="button" class="knopf klein" id="t-nach-datum">📅 Nach Datum sortieren</button>
+        <div class="bereich-kopf">
+          <h3>Aufgaben</h3>
+          <div class="sortier-leiste" id="t-sortier-leiste">
+            <button type="button" class="knopf klein" id="t-nach-datum">📅 Nach Datum</button>
+            <button type="button" class="knopf klein" id="t-sortieren" title="Reihenfolge ändern">↕ Sortieren</button>
+          </div>
         </div>
-        <div class="zeile">
+        <ul id="t-unterpunkte" class="checkliste"></ul>
+        <div class="zeile neuer-punkt-zeile">
           <input id="t-neuer-punkt" placeholder="z. B. Raum buchen" aria-label="Neue Aufgabe" enterkeyhint="done">
-          <button type="button" id="t-punkt-dazu" class="knopf">＋ Dazu</button>
+          <button type="button" id="t-punkt-dazu" class="knopf haupt plus-knopf" aria-label="Aufgabe hinzufügen" title="Aufgabe hinzufügen">＋</button>
         </div>
         <p id="t-punkte-hinweis" class="klein"></p>
       </div>
 
       <div id="t-aufgaben-platz"></div>
-      <button type="button" id="t-uebernehmen" class="knopf breit" hidden>📅 Als eigenen Termin übernehmen</button>
-      <button type="button" id="t-bearbeiten" class="knopf breit" hidden>✏️ Termin bearbeiten</button>
+      <div class="knopf-reihe termin-ansicht-knoepfe">
+        <button type="button" id="t-uebernehmen" class="knopf" hidden>📅 Als eigenen Termin übernehmen</button>
+        <button type="button" id="t-bearbeiten" class="knopf" hidden>✏️ Termin bearbeiten</button>
+      </div>
 
       <div class="dialog-knoepfe" id="t-knoepfe">
         <button type="submit" value="speichern" class="knopf haupt">Speichern</button>
