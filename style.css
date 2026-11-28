@@ -803,10 +803,10 @@ dialog { border-radius: calc(var(--abstand) + 1.45rem); }
 .termin-extern.uebernommen { background: #bcd5b0; }
 
 /* Fristen: Größe wie externe Termine, dunkelgrün */
-.termin-extern.termin-frist { background: var(--tanne); color: var(--weiss); }
-.termin-frist .te-datum { background: rgba(255,255,255,.16); color: var(--weiss); }
-.termin-frist .te-datum .wt { color: rgba(255,255,255,.75); }
-.termin-frist .te-wer { color: var(--sonne); }
+.termin-extern.termin-frist { background: var(--sonne); color: var(--tanne); }
+.termin-frist .te-datum { background: rgba(255,255,255,.6); color: var(--tanne); }
+.termin-frist .te-datum .wt { color: var(--tanne); }
+.termin-frist .te-wer { color: var(--tanne); }
 
 /* ---------- Termin: schlanke Ansicht ---------- */
 .termin-info .ti-titel .marke { vertical-align: middle; font-size: .8rem; }
