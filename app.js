@@ -579,7 +579,7 @@ const FELDNAMEN = {
   faellig: "Frist", faellig_zeit: "Frist", termin_id: "Termin", status: "Status", extern: "extern", gehoert_zu: "Verknüpfung",
   abgeschlossen: "abgeschlossen", in_planung: "in Planung", link: "Link", mit_schichten: "Schichten",
 };
-const ARTIKEL = { Termin: "den Termin", Aufgabe: "die Aufgabe", Unterpunkt: "den Unterpunkt", Projekt: "das Projekt" };
+const ARTIKEL = { Termin: "den Termin", Aufgabe: "die Aufgabe", Unterpunkt: "die Aufgabe", Projekt: "das Projekt" };
 
 function protokollSatz(e) {
   const wer = e.person ? nameVon(e.person) : "Jemand";
@@ -594,7 +594,7 @@ function protokollSatz(e) {
   }
   const anzahl = e.anzahl > 1;
   const objekt = anzahl
-    ? `${e.anzahl} ${e.art === "Unterpunkt" ? "Unterpunkte" : e.art === "Aufgabe" ? "Aufgaben" : e.art + "e"}`
+    ? `${e.anzahl} ${e.art === "Unterpunkt" ? "Aufgaben" : e.art === "Aufgabe" ? "Aufgaben" : e.art + "e"}`
     : `${ARTIKEL[e.art] || e.art} ${titel}`;
   const ort = e.kontext ? ` im Termin „${e.kontext}“` : "";
   const verb = {
@@ -1118,7 +1118,8 @@ function terminKarte(t, { mitMarke = true, mitProjekt = true } = {}) {
   const etiketten = [
     mitProjekt ? projektEtikett(t.projekt_id) : "",
   ].join("");
-  return `<div class="karte-zeile"><button class="termin${laeuft ? " heute" : ""}" data-termin="${t.id}">${datumBlock(t.datum)}
+  const allesErledigt = punkte.length > 0 && fertig === punkte.length;
+  return `<div class="karte-zeile"><button class="termin${laeuft ? " heute" : ""}${allesErledigt ? " alles-erledigt" : ""}" data-termin="${t.id}">${datumBlock(t.datum)}
     <span class="termin-text">
       <span class="plus-platz" aria-hidden="true"></span>
       <strong>${esc(t.titel)}${mitMarke ? relMarke(t.datum) : ""}</strong>
@@ -1589,7 +1590,7 @@ $("#t-nach-datum").addEventListener("click", async () => {
   if (!bearbeiteterTermin) return;
   const { error } = await sb.rpc("aufgaben_nach_datum", { nur_termin: bearbeiteterTermin.id });
   if (error) return meldung("Das hat nicht geklappt.", true);
-  meldung("Unterpunkte nach Datum sortiert.");
+  meldung("Aufgaben nach Datum sortiert.");
   await neuLadenUndZeichnen();
 });
 $("#t-unterpunkte").addEventListener("change", async (e) => {
@@ -1675,7 +1676,7 @@ dT.addEventListener("close", async () => {
     neueTerminId = data?.id;
     if (!error && entwurfPunkte.length) {
       const { error: e2 } = await sb.from("aufgaben").insert(entwurfPunkte.map((titel) => ({ titel, termin_id: data.id })));
-      if (e2) meldung("Termin gespeichert, aber die Unterpunkte nicht.", true);
+      if (e2) meldung("Termin gespeichert, aber die Aufgaben nicht.", true);
     }
   }
   if (fehler) { console.error(fehler); meldung("Speichern hat nicht geklappt. Bitte noch einmal versuchen.", true); return wiederOeffnen(dT); }
@@ -1694,7 +1695,7 @@ $("#t-loeschen").addEventListener("click", async () => {
   if (!t) return;
   const n = unterpunkteVon(t.id).length;
   const frage = n
-    ? `Den Termin „${t.titel}“ und seine ${n} Unterpunkte wirklich löschen?`
+    ? `Den Termin „${t.titel}“ und seine ${n} Aufgaben wirklich löschen?`
     : `Den Termin „${t.titel}“ wirklich löschen?`;
   if (!confirm(frage)) return;
   const { error } = await sb.from("termine").delete().eq("id", t.id);
@@ -1913,7 +1914,7 @@ $("#a-faellig").addEventListener("focus", fristVorbelegen);
 
 function oeffneAufgabe(a = null, vorgabe = {}) {
   bearbeiteteAufgabe = a;
-  $("#aufgabe-ueberschrift").textContent = a ? (a.termin_id ? "Unterpunkt bearbeiten" : "Aufgabe bearbeiten") : "Neue Aufgabe";
+  $("#aufgabe-ueberschrift").textContent = a ? "Aufgabe bearbeiten" : "Neue Aufgabe";
   $("#a-titel").value = a?.titel || "";
   personenAuswahl(a);
   $("#a-faellig").value = a?.faellig || "";
@@ -2127,7 +2128,7 @@ function zeichneProjekte() {
           <button class="knopf klein" data-aktion="sortieren-umschalten" title="Reihenfolge ändern">↕ Sortieren</button>
         </div>` : ""}
       </div>
-      ${hatUnterpunkte ? `<p class="klein">Hier stehen die Aufgaben des Projekts ohne Termin. Die Unterpunkte der Termine findet ihr direkt bei den Terminen.</p>` : ""}
+      ${hatUnterpunkte ? `<p class="klein">Hier stehen die Aufgaben des Projekts ohne Termin. Die Aufgaben der Termine findet ihr direkt bei den Terminen.</p>` : ""}
       <button class="knopf haupt breit" data-aktion="projekt-aufgabe">＋ Aufgabe für dieses Projekt</button>
       <div style="margin-top:.6rem">
         ${offen.map((a) => aufgabeHtml(a, { mitProjekt: false, liste: "projekt-offen" })).join("") || `<p class="leer">Keine offenen Aufgaben.</p>`}
@@ -2252,13 +2253,13 @@ function oeffneTerminDuplizieren(t) {
     t.ort ? "Ort" : null,
     t.beschreibung ? "Notiz" : null,
     t.projekt_id ? "Projekt" : null,
-    n ? `${n} Unterpunkt${n === 1 ? "" : "en"}` : null,
+    n ? `${n} Aufgabe${n === 1 ? "" : "n"}` : null,
   ].filter(Boolean);
   $("#dt-info").textContent = teile.length
     ? `„${t.titel}“ wird mit ${aufzaehlung(teile)} kopiert.`
     : `„${t.titel}“ wird kopiert.`;
   $("#dt-hinweis").textContent = n
-    ? "Die Unterpunkte sind danach wieder offen. Ihre Fristen verschieben sich mit dem Datum."
+    ? "Die Aufgaben sind danach wieder offen. Ihre Fristen verschieben sich mit dem Datum."
     : "";
   $("#dt-datum").value = vorschlag;
   $("#dt-ganztags").checked = !t.start_zeit;
@@ -2303,7 +2304,7 @@ function oeffneProjektDuplizieren(p) {
   const punkte = z.aufgaben.length - weitere;
   const teile = [
     z.termine.length ? `${z.termine.length} Termin${z.termine.length === 1 ? "" : "e"}` : null,
-    punkte ? `${punkte} Unterpunkt${punkte === 1 ? "" : "e"}` : null,
+    punkte ? `${punkte} Aufgabe${punkte === 1 ? "" : "n"}` : null,
     weitere ? `${weitere} Aufgabe${weitere === 1 ? "" : "n"}` : null,
   ].filter(Boolean);
   $("#dp-info").textContent = teile.length

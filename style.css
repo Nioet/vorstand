@@ -211,7 +211,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
   cursor: pointer;
   box-shadow: 0 1px 2px rgba(0,0,0,.06);
 }
-.termin.heute { box-shadow: inset 5px 0 0 var(--grashalm), 0 1px 2px rgba(0,0,0,.06); }
+
 .termin.frist { background: #fbfaf5; border: 2px dashed var(--linie); box-shadow: none; }
 
 .datum-block {
@@ -1043,3 +1043,12 @@ html, body, button, a, input, select, textarea, label { touch-action: manipulati
 .bereich-kopf > .sortier-leiste { margin: 0; }
 .unterpunkte-bereich .bereich-kopf { margin-bottom: .5rem; }
 .projekt-detail-abschnitt .bereich-kopf { margin-bottom: .4rem; }
+
+/* Rahmen nach innen: alles erledigt = Grün des Fortschrittsbalkens, heute = Dunkelgrün.
+   Als eigene Ebene über dem Inhalt, damit der Balken unten den Rahmen nicht verdeckt */
+.termin.heute, .termin.alles-erledigt { position: relative; }
+.termin.heute::after, .termin.alles-erledigt::after {
+  content: ""; position: absolute; inset: 0; z-index: 2;
+  border-radius: inherit; border: 2.5px solid var(--grashalm); pointer-events: none;
+}
+.termin.heute::after { border-color: var(--tanne); }
