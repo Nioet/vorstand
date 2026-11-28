@@ -1049,6 +1049,6 @@ html, body, button, a, input, select, textarea, label { touch-action: manipulati
 .termin.heute, .termin.alles-erledigt { position: relative; }
 .termin.heute::after, .termin.alles-erledigt::after {
   content: ""; position: absolute; inset: 0; z-index: 2;
-  border-radius: inherit; border: 2.5px solid var(--grashalm); pointer-events: none;
+  border-radius: inherit; border: 5px solid var(--grashalm); pointer-events: none;
 }
 .termin.heute::after { border-color: var(--tanne); }
