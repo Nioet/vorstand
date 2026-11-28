@@ -2,13 +2,14 @@
 :root {
   --tanne: #005437;
   --klee: #008939;
-  --grashalm: #8abd24;
+  --grashalm: #6CCD87;   /* hellgruen */
   --sand: #f5f1e9;
-  --sonne: #fff17a;
+  --sonne: #E6FD53;      /* bw-limette */
   --text: #1b1b1b;
   --grau: #5b5b5b;
   --linie: #d9d3c7;
-  --rot: #b3261e;
+  --rot: #E6007E;        /* magenta */
+  --stoerer: #0BA1DD;
   --orange: #8a4b00;
   --weiss: #ffffff;
   --radius: 14px;
@@ -392,11 +393,11 @@ dialog details summary { cursor: pointer; color: var(--tanne); font-weight: 600;
   font-weight: 600;
   padding: .1rem .55rem;
   border-radius: 999px;
-  background: #e4efd2;
+  background: #dbf3e1;
   color: var(--tanne);
   overflow-wrap: anywhere;
 }
-.etikett.termin-etikett { background: #e9e4f5; color: #3e2a7a; }
+.etikett.termin-etikett { background: #d9f0fa; color: #06627f; }   /* stoerer, hell */
 .etikett.fertig { background: var(--tanne); color: var(--weiss); }
 
 .filter-auswahl { margin: -.4rem 0 1rem; }
@@ -547,7 +548,7 @@ input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }
 .projekt-abschnitt { margin-top: 2rem; padding-top: .2rem; border-top: 2px dashed var(--linie); }
 .projekt-abschnitt .monat { margin-top: 1.2rem; }
 .projekt-karte.ist-planung { background: #fbfaf5; border: 2px dashed var(--linie); box-shadow: none; }
-.marke.planung { background: #e9e4f5; color: #3e2a7a; }
+.marke.planung { background: #d9f0fa; color: #06627f; }
 #projekte-uebersicht > .haken { margin-top: 1.5rem; }
 
 /* ---------- Frist mit Uhrzeit ---------- */
@@ -610,7 +611,7 @@ input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }
 }
 .fortschritt-text > .fuellung {
   position: absolute; inset: 0 auto 0 0;
-  background: #c4e08a;
+  background: var(--grashalm);
 }
 .fortschritt-text.fertig > .fuellung { background: var(--grashalm); }
 .fortschritt-text > .label {
@@ -720,15 +721,15 @@ input[type="time"]:invalid, input[type="date"]:invalid { min-height: 3rem; }
 .rueck-knoepfe { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
 .rueck-knoepfe .knopf { padding: .55rem .4rem; white-space: nowrap; background: var(--weiss); color: var(--tanne); border: 1.5px solid #c9d6c9; font-weight: 600; }
 .rueck-knoepfe .knopf[data-rueck="ja"].gewaehlt { background: var(--tanne); color: var(--weiss); border-color: var(--tanne); }
-.rueck-knoepfe .knopf[data-rueck="nein"].gewaehlt { background: #8a2f2f; color: var(--weiss); border-color: #8a2f2f; }
+.rueck-knoepfe .knopf[data-rueck="nein"].gewaehlt { background: var(--rot); color: var(--weiss); border-color: var(--rot); }
 .rueck-liste { font-size: .9rem; margin-top: .5rem; }
 .rueck-liste p { margin: .25rem 0; }
 .rueck-zeichen { display: inline-block; width: 1.1em; text-align: center; font-weight: 700; }
 .termin .rueck { color: var(--grau); }
 /* Häkchen und Kreuz kräftig und farbig, damit sie auf dem iPhone nicht dünn wirken */
 .rz, .rueck-zeichen { font-weight: 800; font-family: system-ui, sans-serif; }
-.rz.ja, .rueck-zeichen.ja { color: #2e7d32; }
-.rz.nein, .rueck-zeichen.nein { color: #b3261e; }
+.rz.ja, .rueck-zeichen.ja { color: #2a8a4e; }
+.rz.nein, .rueck-zeichen.nein { color: var(--rot); }
 .rueck-liste:empty { display: none; }
 
 /* ---------- Änderungsprotokoll ---------- */
@@ -802,7 +803,7 @@ dialog { border-radius: calc(var(--abstand) + 1.45rem); }
 .termin-extern.termin-frist { background: var(--tanne); color: var(--weiss); }
 .termin-frist .te-datum { background: rgba(255,255,255,.16); color: var(--weiss); }
 .termin-frist .te-datum .wt { color: rgba(255,255,255,.75); }
-.termin-frist .te-wer { color: #cfe8b0; }
+.termin-frist .te-wer { color: var(--sonne); }
 
 /* ---------- Termin: schlanke Ansicht ---------- */
 .termin-info .ti-titel .marke { vertical-align: middle; font-size: .8rem; }
@@ -921,7 +922,7 @@ html, body, button, a, input, select, textarea, label { touch-action: manipulati
 .schicht-frei { font-size: .9rem; color: var(--klee); font-weight: 600; }
 .schicht.voll .schicht-frei { color: var(--grau); }
 .schicht .knopf.breit { margin-top: 0; min-height: 3rem; }
-.schicht .knopf.gewaehlt { background: #e3efe0; color: var(--tanne); border-color: var(--tanne); }
+.schicht .knopf.gewaehlt { background: #dbf3e1; color: var(--tanne); border-color: var(--tanne); }
 
 /* Bearbeiten: eine Zeile je Schicht */
 #t-schichten-schalter .haken { margin-top: .9rem; }
@@ -944,7 +945,7 @@ html, body, button, a, input, select, textarea, label { touch-action: manipulati
   padding: .2rem .65rem; min-height: 2rem;
   background: var(--weiss); border-radius: 999px; font-size: .95rem;
 }
-.schicht-namen li.ich { background: #e3efe0; color: var(--tanne); font-weight: 600; }
+.schicht-namen li.ich { background: #dbf3e1; color: var(--tanne); font-weight: 600; }
 .schicht-namen li.ohne-app { padding-right: .2rem; }
 .name-weg {
   width: 1.9rem; height: 1.9rem; margin-left: .1rem; border: none; border-radius: 50%;
@@ -981,7 +982,7 @@ html, body, button, a, input, select, textarea, label { touch-action: manipulati
   background: color-mix(in srgb, var(--sand) 45%, var(--weiss));
 }
 .termin > .fortschritt-text > .fuellung,
-.projekt-karte > .fortschritt-text > .fuellung { background: #a6cf4f; }
+.projekt-karte > .fortschritt-text > .fuellung { background: var(--grashalm); }
 .termin > .fortschritt-text.fertig > .fuellung,
 .projekt-karte > .fortschritt-text.fertig > .fuellung { background: var(--grashalm); }
 .termin > .fortschritt-text > .label,
