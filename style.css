@@ -295,7 +295,11 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
 .aufgabe.ist-erledigt .titel-knopf { text-decoration: line-through; color: var(--grau); }
 .aufgabe .meta { font-size: .92rem; color: var(--grau); margin: .3rem 0 .5rem; }
 .aufgabe .meta .ueberfaellig { color: var(--rot); font-weight: 700; }
-.aufgabe .meta .bald { color: var(--orange); font-weight: 700; }
+.aufgabe .meta .bald, .punkt-meta .bald {
+  /* heute/morgen fällig: gelb hinterlegt wie „Heute“ bei Terminen */
+  display: inline-block; padding: .05rem .5rem; border-radius: 999px;
+  background: var(--sonne); color: var(--text); font-weight: 700;
+}
 .aufgabe .knoepfe { display: flex; gap: .5rem; flex-wrap: wrap; }
 .aufgabe .knoepfe .knopf { flex: 1; }
 
@@ -440,7 +444,6 @@ dialog details summary { cursor: pointer; color: var(--tanne); font-weight: 600;
 /* Vier Reiter: etwas kleinere Schrift auf schmalen Handys */
 @media (max-width: 360px) { .leiste button { font-size: .8rem; } }
 .punkt-meta .ueberfaellig { color: var(--rot); font-weight: 700; }
-.punkt-meta .bald { color: var(--orange); font-weight: 700; }
 
 /* ---------- Duplizieren-Knopf (＋) ---------- */
 .karte-zeile { position: relative; }

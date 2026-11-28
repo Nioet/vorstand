@@ -1141,8 +1141,8 @@ function fristText(a) {
   const vorbei = n === 0 && zeit && a.faellig_zeit.slice(0, 5) < `${pad(jetzt.getHours())}:${pad(jetzt.getMinutes())}`;
   if (n < 0) return `<span class="ueberfaellig">⚠️ überfällig seit ${-n === 1 ? "gestern" : `${-n} Tagen`}</span>`;
   if (vorbei) return `<span class="ueberfaellig">⚠️ überfällig seit ${zeit}</span>`;
-  if (n === 0) return `<span class="bald">📅 heute ${zeit ? "bis " + zeit : "fällig"}</span>`;
-  if (n === 1) return `<span class="bald">📅 morgen ${zeit ? "bis " + zeit : "fällig"}</span>`;
+  if (n === 0) return `📅\u00a0<span class="bald">heute ${zeit ? "bis " + zeit : "fällig"}</span>`;
+  if (n === 1) return `📅\u00a0<span class="bald">morgen ${zeit ? "bis " + zeit : "fällig"}</span>`;
   return `📅 bis ${esc(langesDatum(a.faellig))}${zeit ? ", " + zeit : ""}`;
 }
 
